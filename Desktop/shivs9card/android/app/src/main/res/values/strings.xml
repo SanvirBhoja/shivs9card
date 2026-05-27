@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Shivaans 9 Card</string>
+    <string name="title_activity_main">Shivaans 9 Card</string>
+    <string name="package_name">com.sanvir.shivaans9card</string>
+    <string name="custom_url_scheme">com.sanvir.shivaans9card</string>
+</resources>
