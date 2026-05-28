@@ -22,6 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.5' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -210,13 +211,20 @@ function broadcastGame(roomCode, game){
   if(!room) return;
   if(game.winner !== null && game.winner !== undefined){
     // Game over — send full unhidden state + scores so all clients can show results
-    const scores = game.players.map(p => ({
-      id: p.id, name: p.name,
-      ...serverScorePlayer(p),
-      hand: p.hand,
-      hasComDown: p.hasComDown,
-      wildWin: game.winner === p.id && game.wildWin,
-    }));
+    const scores = game.players.map(p => {
+      const base = serverScorePlayer(p);
+      const wonWithWild = game.winner === p.id && !!game.wildWin;
+      return {
+        id: p.id,
+        name: p.name,
+        ...base,
+        total: wonWithWild ? 30 : base.total,
+        items: wonWithWild ? [{ label: 'Won with Joker/Wild', pts: 30 }] : base.items,
+        hand: p.hand,
+        hasComDown: p.hasComDown,
+        wildWin: wonWithWild,
+      };
+    });
     room.players.forEach((rp, idx) => {
       if(rp.socketId){
         io.to(rp.socketId).emit('game_state', { ...game, myPlayerIdx: idx, players: game.players });
@@ -284,6 +292,7 @@ io.on('connection', socket => {
       io.to(roomCode).emit('room_updated', sanitiseRoom(room));
       socket.emit('game_state', playerView(room.game, existingIdx));
       socket.emit('action_error', 'Rejoined game successfully.');
+      io.to(roomCode).emit('system_message', { text: `✅ ${room.players[existingIdx].name} rejoined the game`, ts: Date.now() });
       return;
     }
 
@@ -431,13 +440,41 @@ io.on('connection', socket => {
         if(!card) return fail('Select exactly one card to throw.');
         players[myIdx].hand=players[myIdx].hand.filter(c=>c.id!==cardId);
         const dp=[...g.discardPile,card];
-        if(!players[myIdx].hand.length){room.lastWinner=myIdx;g=appendMove({...g,players,discardPile:dp,winner:myIdx,wildWin:card.isWild}, players[myIdx].name + ' threw and went out');}
+        if(!players[myIdx].hand.length){
+          room.lastWinner=myIdx;
+          g=appendMove({...g,players,discardPile:dp,winner:myIdx,wildWin:card.isWild}, players[myIdx].name + ' threw and went out');
+        }
+        else if(card.isWild){
+          g=appendMove({...g,players,discardPile:dp,phase:'recall',recallBy:myIdx,recallCard:card.id}, players[myIdx].name + ' threw a Joker/Wild — 5 seconds to recall!');
+          room.game = g;
+          broadcastGame(code, g);
+          setTimeout(() => {
+            const r = rooms.get(code);
+            if(!r?.game || r.game.phase !== 'recall' || r.game.recallBy !== myIdx) return;
+            let nd=r.game.deck, fd=[...r.game.discardPile];
+            if(!nd.length&&fd.length>1){const top=fd.pop();nd=shuffle([...fd]);fd=[top];}
+            const next=(myIdx+1)%r.game.players.length;
+            r.game=appendMove({...r.game,deck:nd,discardPile:fd,currentPlayer:next,phase:'draw',recallBy:null,recallCard:null}, 'Recall window closed. Next player may pick up the throw.');
+            broadcastGame(code, r.game);
+          }, 5000);
+          return;
+        }
         else{
           let nd=g.deck,fd=dp;
           if(!nd.length&&dp.length>1){const top=dp.pop();nd=shuffle([...dp]);fd=[top];}
           const next=(g.currentPlayer+1)%g.players.length;
           g=appendMove({...g,players,deck:nd,discardPile:fd,currentPlayer:next,phase:'draw'}, players[myIdx].name + ' threw ' + card.rank + (card.suit!=='★'?card.suit:'🃏'));
         }
+      }
+
+      else if(action === 'recall_wild'){
+        if(g.phase !== 'recall' || g.recallBy !== myIdx) return fail('Cannot recall now.');
+        const players=g.players.map(p=>({...p,hand:[...p.hand]}));
+        const card=g.discardPile[g.discardPile.length-1];
+        if(!card || !card.isWild) return fail('No Joker/Wild to recall.');
+        players[myIdx].hand.push(card);
+        const dp=g.discardPile.slice(0,-1);
+        g=appendMove({...g,players,discardPile:dp,phase:'play',recallBy:null,recallCard:null}, players[myIdx].name + ' recalled the Joker/Wild');
       }
 
       room.game = g;
@@ -505,10 +542,8 @@ io.on('connection', socket => {
     const safeName = sender?.name || String(playerName || 'Player').trim().slice(0, 16) || 'Player';
     const msg = { playerName: safeName, message: text, timestamp: Date.now() };
     io.to(roomCode).emit('chat_message', msg);
-    io.to(roomCode).emit('banter_message', msg);
   }
   socket.on('chat_message', handleChat);
-  socket.on('banter_message', handleChat);
 
   // Save series to recent games when End Game is clicked
   socket.on('end_game', ({ code, series, playerName }) => {
@@ -554,6 +589,16 @@ io.on('connection', socket => {
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
     socket.emit('game_state', playerView(room.game, idx));
     socket.emit('action_error', 'Rejoined game successfully.');
+    io.to(roomCode).emit('system_message', { text: `✅ ${room.players[idx].name} rejoined the game`, ts: Date.now() });
+  });
+
+  socket.on('player_exit', ({ code }) => {
+    const roomCode = String(code || '').trim().toUpperCase();
+    const room = rooms.get(roomCode);
+    if(!room) return;
+    const idx = room.players.findIndex(p => p.socketId === socket.id);
+    if(idx === -1) return;
+    io.to(roomCode).emit('system_message', { text: `⚠️ ${room.players[idx].name} left the game`, ts: Date.now() });
   });
 
   socket.on('disconnect', () => {
@@ -568,6 +613,7 @@ io.on('connection', socket => {
         io.to(code).emit('room_updated', sanitiseRoom(room));
       } else {
         io.to(code).emit('player_disconnected', { name: room.players[idx].name });
+        io.to(code).emit('system_message', { text: `⚠️ ${room.players[idx].name} left the game`, ts: Date.now() });
       }
     });
   });
@@ -579,7 +625,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.4 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.0.5 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
@@ -587,4 +633,3 @@ httpServer.listen(PORT, () => {
   setInterval(() => { fetch(BASE + '/health').catch(() => {}); }, 9 * 60 * 1000);
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.4' }));

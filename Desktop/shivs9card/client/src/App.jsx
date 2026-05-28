@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.4";
+const APP_VERSION = "v1.0.5";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -256,10 +256,13 @@ function applySeries(series, winnerId, gamePlayers, wildWin = false) {
     const gp = gamePlayers.find(p => p.id === sp.id);
 
     if (won && wildWin) {
+      let consec = sp.consec + 1;
+      let bonus = 0;
+      if (consec >= 3) { bonus = -50; consec = 0; }
       return {
-        ...sp, total: sp.total + 30, wins: sp.wins, consec: 0,
-        lastPts: 30, lastItems: [{ label: "Won with wild card", pts: 30 }],
-        lastBonus: 0, lastNoSet: false, lastWildWin: true, lastHand: gp?.hand || [],
+        ...sp, total: sp.total + 30 + bonus, wins: sp.wins + 1, consec,
+        lastPts: 30, lastItems: [{ label: "Won with Joker/Wild", pts: 30 }],
+        lastBonus: bonus, lastNoSet: false, lastWildWin: true, lastHand: gp?.hand || [],
       };
     }
 
@@ -292,7 +295,7 @@ function applySeriesFromServer(series, winnerId, gamePlayers, wildWin = false) {
   const players = series.players.map(sp => {
     const gp = gamePlayers.find(p => p.id === sp.id);
     const won = sp.id === winnerId;
-    const pts = gp ? (gp._serverTotal ?? 0) : 0;
+    const pts = gp ? (gp._serverTotal ?? (won && wildWin ? 30 : 0)) : (won && wildWin ? 30 : 0);
     let consec = won ? sp.consec + 1 : 0;
     let bonus = 0;
     if (consec >= 3) { bonus = -50; consec = 0; }
@@ -755,6 +758,12 @@ function DealScreen({ game, onDone }) {
   const [phase, setPhase] = useState("dealing"); // dealing | pause | flipping | revealed
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showWild, setShowWild] = useState(false);
+  const doneRef = useRef(false);
+  const finishDeal = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone();
+  }, [onDone]);
 
   // Drive the dealing counter forward
   useEffect(() => {
@@ -768,11 +777,12 @@ function DealScreen({ game, onDone }) {
   useEffect(() => {
     if (phase !== "pause") return;
     const t1 = setTimeout(() => setPhase("flipping"), 500);
-    const t2 = setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1300);
-    const t3 = setTimeout(() => setShowWild(true), 2400);
-    const t4 = setTimeout(() => onDone(), 4500);
-    return () => [t1, t2, t3, t4].forEach(clearTimeout);
-  }, [phase]);
+    const t2 = setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1100);
+    const t3 = setTimeout(() => setShowWild(true), 1900);
+    const t4 = setTimeout(() => finishDeal(), 3800);
+    const failsafe = setTimeout(() => finishDeal(), 6500);
+    return () => [t1, t2, t3, t4, failsafe].forEach(clearTimeout);
+  }, [phase, finishDeal]);
 
   // Cards dealt to each player at current step
   // Step s deals card to player (s-1)%n  (step 1 = player 0, step 2 = player 1, ...)
@@ -892,33 +902,16 @@ function DealScreen({ game, onDone }) {
         /* ── FLIP REVEAL ── */
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}>
 
-          {/* 3D flip card — bigger for visibility */}
-          <div style={{ perspective: 900 }}>
-            <div style={{
-              width: 120, height: 168,
-              position: "relative",
-              transformStyle: "preserve-3d",
-              transition: "transform 1.1s cubic-bezier(0.4,0,0.2,1)",
-              transform: cardFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-            }}>
-              {/* Face-down side */}
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 9,
-                backfaceVisibility: "hidden",
-                background: CARD_BG,
-                border: "2.5px solid #0a3020",
-                boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
-              }} />
-              {/* Face-up side */}
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 9,
-                backfaceVisibility: "hidden",
-                transform: "rotateY(180deg)",
-                background: "#fffef2",
-                border: "2.5px solid #c8b87a",
-                boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
-                display: "flex", flexDirection: "column", overflow: "hidden",
-              }}>
+          {/* Reliable scaleX flip — works inside Android WebView/Capacitor */}
+          <div style={{
+            width: 120, height: 168, borderRadius: 9,
+            background: cardFlipped ? "#fffef2" : CARD_BG,
+            border: cardFlipped ? "2.5px solid #c8b87a" : "2.5px solid #0a3020",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
+            display: "flex", flexDirection: "column", overflow: "hidden",
+            transform: cardFlipped ? "scaleX(1)" : "scaleX(0.08)",
+            transition: "transform 0.35s ease, background 0.2s ease",
+          }}>
                 {flipped?.rank === "JOKER" ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#7c3aed" }}>
                     <span style={{ fontSize: 34 }}>🃏</span>
@@ -938,8 +931,6 @@ function DealScreen({ game, onDone }) {
                     {flipped?.isWild && <div style={{ position: "absolute", top: 0, right: 0, background: "#f59e0b", color: "#fff", fontSize: 8, fontWeight: 800, padding: "2px 4px", borderRadius: "0 8px 0 4px" }}>W</div>}
                   </React.Fragment>
                 )}
-              </div>
-            </div>
           </div>
 
           {/* Wild rank announcement */}
@@ -960,7 +951,7 @@ function DealScreen({ game, onDone }) {
       )}
 
       {/* Skip button */}
-      <button onClick={onDone} style={{
+      <button onClick={finishDeal} style={{
         marginTop: 32, padding: "6px 18px", borderRadius: 8, fontSize: 12,
         background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)",
         border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
@@ -1211,6 +1202,19 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   const topDiscard = discardPile[discardPile.length - 1];
   const selCards = selectedIds.map(id => human.hand.find(c => c.id === id)).filter(Boolean);
 
+  // Offline recall timer: if a Joker/Wild is thrown, give the player 5 seconds to recall before the next player can take it.
+  useEffect(() => {
+    if (onAction || phase !== "recall" || game.recallBy !== 0) return;
+    const t = setTimeout(() => {
+      setGame(g => {
+        if (!g || g.phase !== "recall" || g.recallBy !== 0) return g;
+        const next = (g.currentPlayer + 1) % g.players.length;
+        return { ...g, currentPlayer: next, phase: "draw", recallBy: null, recallCard: null, selectedIds: [], message: next === 0 ? "🎮 Your turn! Pick Up a card." : g.players[next].name + "'s turn..." };
+      });
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [onAction, phase, game.recallBy, setGame]);
+
   // Keep screen awake while game is active
   useEffect(() => {
     let wakeLock = null;
@@ -1425,8 +1429,11 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       const card = ps[0].hand.find(c => c.id === id);
       ps[0].hand = ps[0].hand.filter(c => c.id !== id);
       const dp = [...g.discardPile, card];
-      // Wild win rule: discarding a wild as last card = win + 30pt penalty, no star
+      // Wild win rule: discarding a wild as last card = win +30 points and still counts as a round win.
       if (!ps[0].hand.length) return { ...g, players: ps, discardPile: dp, winner: 0, wildWin: card.isWild, wildConfirmed: false };
+      if (card.isWild) {
+        return { ...g, players: ps, discardPile: dp, phase: "recall", recallBy: 0, recallCard: card.id, selectedIds: [], addMode: false, placementIdx: null, wildConfirmed: false, message: "🃏 Joker/Wild thrown — 5 seconds to recall it!" };
+      }
       let nd = g.deck, fd = dp, ts = g.tableSets;
       if (!nd.length && dp.length > 1) {
         const top = dp.pop(); nd = shuffle([...dp]); fd = [top];
@@ -1437,6 +1444,19 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       }
       const next = (g.currentPlayer + 1) % g.players.length;
       return { ...g, players: ps, deck: nd, discardPile: fd, tableSets: ts, currentPlayer: next, phase: "draw", selectedIds: [], addMode: false, placementIdx: null, wildConfirmed: false, message: next === 0 ? "🎮 Your turn! Pick Up a card." : g.players[next].name + "'s turn..." };
+    });
+  }
+
+  function recallWild() {
+    if (phase !== "recall" || game.recallBy !== 0 || !topDiscard?.isWild) return;
+    Sounds.draw();
+    if (onAction) onAction("recall_wild", {});
+    setGame(g => {
+      const ps = g.players.map(p => ({ ...p, hand: [...p.hand] }));
+      const card = g.discardPile[g.discardPile.length - 1];
+      if (!card) return g;
+      ps[0].hand.push(card);
+      return { ...g, players: ps, discardPile: g.discardPile.slice(0, -1), phase: "play", recallBy: null, recallCard: null, selectedIds: [], message: "✅ Joker/Wild recalled. Play or throw again." };
     });
   }
 
@@ -1646,6 +1666,12 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
                 <Btn onClick={playSet} bg="#7c3aed">▶ Play Set</Btn>
                 <Btn onClick={toggleAdd} disabled={!human.hasComDown} bg="#ea580c" active={addMode}>{addMode ? "✕ Cancel" : "➕ Add to Set"}</Btn>
                 <Btn onClick={doDiscard} bg="#dc2626">🗑 Throw</Btn>
+              </React.Fragment>
+            )}
+            {phase === "recall" && game.recallBy === 0 && (
+              <React.Fragment>
+                <Btn onClick={recallWild} bg="#f59e0b">↩ Recall Joker/Wild</Btn>
+                <span style={{ fontSize: 11, opacity: 0.65, alignSelf: "center" }}>5 sec window</span>
               </React.Fragment>
             )}
           </div>
@@ -1872,9 +1898,11 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
                 socket?.emit("set_theme", { code: roomCode, theme: key });
               }} style={{
                 flex: 1, padding: "10px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700,
-                background: CARD_BG === CARD_THEMES[key] ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.07)",
+                background: CARD_BG === CARD_THEMES[key] ? "rgba(251,191,36,0.24)" : "rgba(255,255,255,0.07)",
                 color: CARD_BG === CARD_THEMES[key] ? "#fbbf24" : "rgba(255,255,255,0.5)",
-                border: CARD_BG === CARD_THEMES[key] ? "1px solid rgba(251,191,36,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                border: CARD_BG === CARD_THEMES[key] ? "2px solid #fbbf24" : "1px solid rgba(255,255,255,0.1)",
+                boxShadow: CARD_BG === CARD_THEMES[key] ? "0 0 18px rgba(251,191,36,0.45)" : "none",
+                transform: CARD_BG === CARD_THEMES[key] ? "translateY(-2px) scale(1.03)" : "none",
                 cursor: "pointer",
               }}>{label}</button>
             ))}
@@ -2066,9 +2094,15 @@ function ChatChat({ socket, roomCode, playerName }) {
       setMessages(prev => [...prev.slice(-49), msg]);
       if (!open) setUnread(u => u + 1);
     }
+    function onSystem(msg) {
+      setMessages(prev => [...prev.slice(-49), { system: true, message: msg.text || msg.message || "System update", timestamp: msg.ts || Date.now() }]);
+      if (!open) setUnread(u => u + 1);
+    }
+    socket.off("chat_message", onMsg);
+    socket.off("system_message", onSystem);
     socket.on("chat_message", onMsg);
-    socket.on("banter_message", onMsg);
-    return () => { socket.off("chat_message", onMsg); socket.off("banter_message", onMsg); };
+    socket.on("system_message", onSystem);
+    return () => { socket.off("chat_message", onMsg); socket.off("system_message", onSystem); };
   }, [socket, open]);
 
   useEffect(() => {
@@ -2132,6 +2166,13 @@ function ChatChat({ socket, roomCode, playerName }) {
               </div>
             )}
             {messages.map((m, i) => {
+              if (m.system) {
+                return (
+                  <div key={i} style={{ alignSelf: "center", background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.22)", color: "#fbbf24", borderRadius: 999, padding: "5px 10px", fontSize: 11, fontWeight: 700, textAlign: "center", maxWidth: "92%" }}>
+                    {m.message}
+                  </div>
+                );
+              }
               const isMe = m.playerName === playerName;
               return (
                 <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
@@ -2381,6 +2422,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
 
   function handleEnd() {
     if (!window.confirm("End this game and save it to Recent Games?")) return;
+    socket?.emit("player_exit", { code: roomCodeRef.current });
     if (series_ && series_.players) {
       saveRecentLocal(series_);
       socket?.emit("end_game", { code: roomCodeRef.current, series: series_, playerName: viewGame?.players?.[0]?.name });
@@ -2592,6 +2634,9 @@ export default function App() {
         const gamePlayers = scores.map(s => ({
           id: s.id, name: s.name, hand: s.hand || [],
           hasComDown: s.hasComDown === true,
+          _serverTotal: s.total ?? 0,
+          _serverItems: s.items || [],
+          _serverNoSet: s.noSet === true,
         }));
         const currentSeries = prev.currentSeries || {
           n: (prev.playerNames || []).length,
