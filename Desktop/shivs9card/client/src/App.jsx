@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.6";
+const APP_VERSION = "v1.0.7";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -2282,6 +2282,20 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
   useEffect(() => {
     if (series?.roomCode) roomCodeRef.current = series.roomCode;
   }, [series?.roomCode]);
+
+  // On entering the game screen, ask the server for the current state. After a
+  // rejoin the game_state can arrive while we're still on the lobby screen, so
+  // this screen may mount without it — request a fresh copy (with one retry).
+  useEffect(() => {
+    if (!socket) return;
+    const pull = () => {
+      const code = roomCodeRef.current || sessionStorage.getItem("shiv9_room") || localStorage.getItem("shiv9_room");
+      if (code) socket.emit("request_state", { code });
+    };
+    pull();
+    const t = setTimeout(pull, 900);
+    return () => clearTimeout(t);
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;

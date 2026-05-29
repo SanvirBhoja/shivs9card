@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.6' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.7' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -602,6 +602,17 @@ io.on('connection', socket => {
     io.to(roomCode).emit('system_message', { text: `✅ ${room.players[idx].name} rejoined the game`, ts: Date.now() });
   });
 
+  // Resend the current game state to the requesting socket only (no broadcasts,
+  // no chat messages). The game screen calls this on mount so a rejoining player
+  // isn't left on "Connecting…" if the state arrived while still on the lobby.
+  socket.on('request_state', ({ code }) => {
+    const room = rooms.get(String(code || '').trim().toUpperCase());
+    if (!room || !room.game) return;
+    const idx = room.players.findIndex(p => p.socketId === socket.id);
+    if (idx === -1) return;
+    socket.emit('game_state', playerView(room.game, idx));
+  });
+
   socket.on('player_exit', ({ code }) => {
     const roomCode = String(code || '').trim().toUpperCase();
     const room = rooms.get(roomCode);
@@ -652,7 +663,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.6 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.0.7 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
