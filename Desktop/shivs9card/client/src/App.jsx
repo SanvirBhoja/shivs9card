@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.5";
+const APP_VERSION = "v1.0.6";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -248,6 +248,23 @@ function initSeries(n, names = []) {
   };
 }
 
+// Build meaningful round-summary highlights from reliable per-player points.
+// (Replaces the old fastestWin/mostSets/comeback blocks, which mislabelled
+//  leftover-card counts as "sets" and the worst score as a "comeback".)
+function buildRoundStats(players, winnerId) {
+  const winner = players.find(p => p.id === winnerId);
+  const losers = players.filter(p => p.id !== winnerId)
+    .sort((a, b) => (a.lastPts || 0) - (b.lastPts || 0));
+  const closest = losers[0];
+  const heaviest = losers[losers.length - 1];
+  return {
+    winnerName: winner ? winner.name : null,
+    // "Closest" only makes sense with 2+ losers (otherwise it's the same player as heaviest)
+    closest: losers.length >= 2 && closest ? `${closest.name} (+${closest.lastPts || 0})` : null,
+    heaviest: heaviest && (heaviest.lastPts || 0) > 0 ? `${heaviest.name} (+${heaviest.lastPts || 0})` : null,
+  };
+}
+
 function applySeries(series, winnerId, gamePlayers, wildWin = false) {
   const scores = gamePlayers.map(p => ({ id: p.id, ...scorePlayer(p) }));
   const players = series.players.map(sp => {
@@ -278,15 +295,7 @@ function applySeries(series, winnerId, gamePlayers, wildWin = false) {
       lastWildWin: false, lastHand: gp?.hand || [],
     };
   });
-  // Build round stats
-  const winner = players.find(p => p.id === winnerId);
-  const mostSetsPlayer = [...players].sort((a,b) => (b.lastItems?.length||0) - (a.lastItems?.length||0))[0];
-  const biggestComeback = [...players].filter(p => p.id !== winnerId).sort((a,b) => b.lastPts - a.lastPts)[0];
-  const roundStats = {
-    fastestWin: winner ? `${winner.name} won!` : null,
-    mostSets: mostSetsPlayer?.lastItems?.length > 0 ? `${mostSetsPlayer.name} (${mostSetsPlayer.lastItems.length} sets)` : null,
-    biggestComeback: biggestComeback?.lastPts > 0 ? `${biggestComeback.name} had ${biggestComeback.lastPts}pts` : null,
-  };
+  const roundStats = buildRoundStats(players, winnerId);
   return { ...series, players, round: series.round + 1, lastWin: winnerId, roundStats };
 }
 
@@ -312,12 +321,7 @@ function applySeriesFromServer(series, winnerId, gamePlayers, wildWin = false) {
       lastHand: gp?.hand || [],
     };
   });
-  const winner = players.find(p => p.id === winnerId);
-  const roundStats = {
-    fastestWin: winner ? winner.name + ' won!' : null,
-    mostSets: null,
-    biggestComeback: null,
-  };
+  const roundStats = buildRoundStats(players, winnerId);
   return { ...series, players, round: series.round + 1, lastWin: winnerId, roundStats };
 }
 
@@ -725,6 +729,13 @@ const SHIV9_STYLES = `
     50%      { box-shadow: 0 0 20px 4px rgba(251,191,36,0.6); border-color: rgba(251,191,36,0.9); }
   }
   .active-player-glow { animation: pulseGlow 1.4s ease-in-out infinite; border: 2px solid rgba(251,191,36,0.3); border-radius: 12px; }
+  @keyframes dealFlip {
+    0%   { transform: scaleX(1); }
+    45%  { transform: scaleX(0.1); }
+    55%  { transform: scaleX(0.1); }
+    100% { transform: scaleX(1); }
+  }
+  .deal-flip { animation: dealFlip 0.6s ease-in-out; }
 `;
 
 // ─── Pulse hook for active player indicator ───────────────────
@@ -902,16 +913,30 @@ function DealScreen({ game, onDone }) {
         /* ── FLIP REVEAL ── */
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}>
 
-          {/* Reliable scaleX flip — works inside Android WebView/Capacitor */}
-          <div style={{
+          {/* Flip reveal — the card back shows first, then the face is revealed.
+              Uses an opacity crossfade + a self-correcting scaleX flip (never a
+              3D/backface flip, which repeatedly got stuck blank in the Android WebView). */}
+          <div className={cardFlipped ? "deal-flip" : ""} style={{
+            position: "relative",
             width: 120, height: 168, borderRadius: 9,
-            background: cardFlipped ? "#fffef2" : CARD_BG,
-            border: cardFlipped ? "2.5px solid #c8b87a" : "2.5px solid #0a3020",
             boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
-            display: "flex", flexDirection: "column", overflow: "hidden",
-            transform: cardFlipped ? "scaleX(1)" : "scaleX(0.08)",
-            transition: "transform 0.35s ease, background 0.2s ease",
+            transform: showWild ? "scale(1.04)" : "scale(1)",
+            transition: "transform 0.25s ease",
           }}>
+            {/* Card back (shown before the flip) */}
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: 9,
+              background: CARD_BG, border: CARD_BORDER,
+              opacity: cardFlipped ? 0 : 1, transition: "opacity 0.3s ease",
+            }} />
+
+            {/* Card face (revealed after the flip) */}
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: 9,
+              background: "#fffef2", border: "2.5px solid #c8b87a",
+              display: "flex", flexDirection: "column", overflow: "hidden",
+              opacity: cardFlipped ? 1 : 0, transition: "opacity 0.3s ease",
+            }}>
                 {flipped?.rank === "JOKER" ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#7c3aed" }}>
                     <span style={{ fontSize: 34 }}>🃏</span>
@@ -931,6 +956,7 @@ function DealScreen({ game, onDone }) {
                     {flipped?.isWild && <div style={{ position: "absolute", top: 0, right: 0, background: "#f59e0b", color: "#fff", fontSize: 8, fontWeight: 800, padding: "2px 4px", borderRadius: "0 8px 0 4px" }}>W</div>}
                   </React.Fragment>
                 )}
+            </div>
           </div>
 
           {/* Wild rank announcement */}
@@ -950,13 +976,20 @@ function DealScreen({ game, onDone }) {
         </div>
       )}
 
-      {/* Skip button */}
+      {/* Continue button — "Skip" before the reveal, "Next" once the card is showing */}
       <button onClick={finishDeal} style={{
-        marginTop: 32, padding: "6px 18px", borderRadius: 8, fontSize: 12,
-        background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)",
-        border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+        marginTop: 32,
+        padding: cardFlipped ? "11px 34px" : "6px 18px",
+        borderRadius: cardFlipped ? 12 : 8,
+        fontSize: cardFlipped ? 16 : 12,
+        fontWeight: cardFlipped ? 800 : 400,
+        background: cardFlipped ? "#16a34a" : "rgba(255,255,255,0.08)",
+        color: cardFlipped ? "#fff" : "rgba(255,255,255,0.4)",
+        border: cardFlipped ? "none" : "1px solid rgba(255,255,255,0.12)",
+        boxShadow: cardFlipped ? "0 4px 16px rgba(22,163,74,0.45)" : "none",
+        cursor: "pointer", transition: "all 0.25s ease",
       }}>
-        Skip ▶
+        {cardFlipped ? "Next ▶" : "Skip ▶"}
       </button>
     </div>
   );
@@ -1131,22 +1164,22 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
       {/* Round Stats */}
       {series.roundStats && (
         <div style={{ width: "100%", maxWidth: 440, marginBottom: 20 }}>
-          <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.4, marginBottom: 8 }}>ROUND STATS</div>
+          <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.4, marginBottom: 8 }}>ROUND HIGHLIGHTS</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {series.roundStats.fastestWin && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>⚡</div>
-              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>FASTEST WIN</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.fastestWin}</div>
+            {series.roundStats.winnerName && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>🏆</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>ROUND WINNER</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.winnerName}</div>
             </div>}
-            {series.roundStats.mostSets && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>🃏</div>
-              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>MOST SETS</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.mostSets}</div>
+            {series.roundStats.closest && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>🎯</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>CLOSEST</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.closest}</div>
             </div>}
-            {series.roundStats.biggestComeback && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>🔥</div>
-              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>COMEBACK</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.biggestComeback}</div>
+            {series.roundStats.heaviest && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>😬</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>MOST POINTS</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.heaviest}</div>
             </div>}
           </div>
         </div>
@@ -2239,6 +2272,8 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
     connectionStatus: "connected",
     moveHistory: [],
   });
+  const [dcNotice, setDcNotice]   = useState(null); // { name, seconds } — another player dropped
+  const [gameEnded, setGameEnded] = useState(null); // reason string — game was force-ended
   const roomCodeRef   = useRef(series?.roomCode || "");
   const onRoundEndRef = useRef(onRoundEnd);
   // Always keep ref current — prevents stale closure score bug
@@ -2314,23 +2349,39 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
       }, 5000);
     }
 
-    function onGameOver({ updatedSeries }) {
+    function onGameOver({ updatedSeries, reason }) {
       if (updatedSeries) setSeries_(updatedSeries);
+      if (reason) { setDcNotice(null); setGameEnded(reason); }
     }
+    function onPlayerDisconnected({ name, seconds }) {
+      setDcNotice({ name: name || "A player", seconds: seconds || 30 });
+    }
+    function onPlayerReconnected() { setDcNotice(null); }
 
     socket.on("game_state", onGameState);
     socket.on("round_end",  onRoundEndEvt);
     function onActionError(msg) { setUi(u => ({ ...u, message: "❌ " + (msg || "Move blocked."), connectionStatus: "connected" })); }
     socket.on("game_over",  onGameOver);
     socket.on("action_error", onActionError);
+    socket.on("player_disconnected", onPlayerDisconnected);
+    socket.on("player_reconnected",  onPlayerReconnected);
 
     return () => {
       socket.off("game_state", onGameState);
       socket.off("round_end",  onRoundEndEvt);
       socket.off("game_over",  onGameOver);
       socket.off("action_error", onActionError);
+      socket.off("player_disconnected", onPlayerDisconnected);
+      socket.off("player_reconnected",  onPlayerReconnected);
     };
   }, [socket]);
+
+  // Tick down the "waiting for X to reconnect" countdown
+  useEffect(() => {
+    if (!dcNotice || dcNotice.seconds <= 0) return;
+    const t = setTimeout(() => setDcNotice(d => (d ? { ...d, seconds: d.seconds - 1 } : d)), 1000);
+    return () => clearTimeout(t);
+  }, [dcNotice]);
 
   function act(action, payload = {}) {
     socket?.emit("game_action", { code: roomCodeRef.current, action, payload });
@@ -2432,6 +2483,14 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
 
   return (
     <>
+      {gameEnded && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.88)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", color: "#fff", padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 54, marginBottom: 14 }}>🏁</div>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>Game ended</div>
+          <div style={{ fontSize: 14, opacity: 0.7, maxWidth: 320, marginBottom: 26 }}>{gameEnded}</div>
+          <button onClick={onEnd} style={{ padding: "13px 40px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#fbbf24", color: "#1c1c1c", border: "none", cursor: "pointer" }}>Back to menu</button>
+        </div>
+      )}
       {ui.winnerAnnouncement && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.75)",
@@ -2448,6 +2507,11 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
       {ui.connectionStatus !== "connected" && (
         <div style={{ position: "fixed", top: 8, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: ui.connectionStatus === "rejoined" ? "rgba(22,163,74,0.92)" : "rgba(245,158,11,0.95)", color: "#fff", borderRadius: 999, padding: "7px 14px", fontFamily: "Georgia,serif", fontSize: 12, fontWeight: 800, boxShadow: "0 4px 18px rgba(0,0,0,0.35)" }}>
           {ui.connectionStatus === "rejoined" ? "✅ Rejoined game" : " reconnecting… Trying to rejoin"}
+        </div>
+      )}
+      {dcNotice && (
+        <div style={{ position: "fixed", top: 44, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(245,158,11,0.96)", color: "#1c1c1c", borderRadius: 999, padding: "8px 16px", fontFamily: "Georgia,serif", fontSize: 12.5, fontWeight: 800, boxShadow: "0 4px 18px rgba(0,0,0,0.35)", textAlign: "center", maxWidth: "92vw" }}>
+          ⚠️ {dcNotice.name} disconnected — waiting {Math.max(0, dcNotice.seconds)}s to rejoin…
         </div>
       )}
       <div style={{

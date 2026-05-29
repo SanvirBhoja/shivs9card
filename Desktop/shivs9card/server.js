@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.5' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.6' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -279,6 +279,11 @@ io.on('connection', socket => {
 
     if(room.game && existingIdx !== -1){
       room.players[existingIdx].socketId = socket.id;
+      if (room.dcTimers && room.dcTimers[room.players[existingIdx].token]) {
+        clearTimeout(room.dcTimers[room.players[existingIdx].token]);
+        delete room.dcTimers[room.players[existingIdx].token];
+      }
+      io.to(roomCode).emit('player_reconnected', { name: room.players[existingIdx].name });
       socket.join(roomCode);
 
       socket.emit('room_joined', {
@@ -584,8 +589,13 @@ io.on('connection', socket => {
     if (idx === -1) { socket.emit('error', 'Player not found in this room'); return; }
 
     room.players[idx].socketId = socket.id;
+    if (room.dcTimers && room.dcTimers[room.players[idx].token]) {
+      clearTimeout(room.dcTimers[room.players[idx].token]);
+      delete room.dcTimers[room.players[idx].token];
+    }
     socket.join(roomCode);
     socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: room.players[idx].isHost, rejoined: true, playerToken: room.players[idx].token });
+    io.to(roomCode).emit('player_reconnected', { name: room.players[idx].name });
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
     socket.emit('game_state', playerView(room.game, idx));
     socket.emit('action_error', 'Rejoined game successfully.');
@@ -598,6 +608,7 @@ io.on('connection', socket => {
     if(!room) return;
     const idx = room.players.findIndex(p => p.socketId === socket.id);
     if(idx === -1) return;
+    room.players[idx].socketId = null;
     io.to(roomCode).emit('system_message', { text: `⚠️ ${room.players[idx].name} left the game`, ts: Date.now() });
   });
 
@@ -612,8 +623,24 @@ io.on('connection', socket => {
         if(idx===0 && room.players.length) room.players[0].isHost=true;
         io.to(code).emit('room_updated', sanitiseRoom(room));
       } else {
-        io.to(code).emit('player_disconnected', { name: room.players[idx].name });
-        io.to(code).emit('system_message', { text: `⚠️ ${room.players[idx].name} left the game`, ts: Date.now() });
+        // Mid-game disconnect: hold the seat, give 30s to rejoin, then end the game for everyone.
+        const player = room.players[idx];
+        player.socketId = null;
+        const GRACE_SECONDS = 30;
+        io.to(code).emit('player_disconnected', { name: player.name, seconds: GRACE_SECONDS });
+        io.to(code).emit('system_message', { text: `⚠️ ${player.name} disconnected — ${GRACE_SECONDS}s to rejoin…`, ts: Date.now() });
+        room.dcTimers = room.dcTimers || {};
+        if (room.dcTimers[player.token]) clearTimeout(room.dcTimers[player.token]);
+        room.dcTimers[player.token] = setTimeout(() => {
+          const r = rooms.get(code);
+          if (!r) return;
+          const p = r.players.find(pp => pp.token === player.token);
+          if (p && !p.socketId) {
+            io.to(code).emit('game_over', { reason: `${player.name} did not reconnect in time.` });
+            io.to(code).emit('system_message', { text: `🏁 Game ended — ${player.name} did not reconnect.`, ts: Date.now() });
+            rooms.delete(code);
+          }
+        }, GRACE_SECONDS * 1000);
       }
     });
   });
@@ -625,7 +652,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.5 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.0.6 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
