@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.7";
+const APP_VERSION = "v1.0.9";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -62,8 +62,10 @@ function isDonutSet(cards) {
   if (!nw.length) return false;
   const rank = nw[0].rank;
   if (!nw.every(c => c.rank === rank)) return false;
-  const suits = nw.map(c => c.suit);
-  return new Set(suits).size === suits.length;
+  const suits = new Set(nw.map(c => c.suit));
+  if (suits.size !== nw.length) return false;            // real suits must all differ
+  const wildCount = cards.filter(c => c.isWild).length;
+  return suits.size + wildCount >= 4;                     // a donkey set must cover all 4 shapes
 }
 function getRunSuit(cards) {
   const nw = cards.filter(c => !c.isWild);
@@ -84,6 +86,9 @@ function validMeld(cards) {
   if (!nw.length) return false;
   // Donkey set: same rank, all different suits
   if (isDonutSet(cards)) return true;
+  // Suit run — A needs at least one other real card to anchor which end it sits on.
+  // A alone with jokers (e.g. Joker A Joker) is ambiguous: it could be A-2-3 or Q-K-A.
+  if (nw.length === 1 && nw[0].rank === "A") return false;
   // Suit run
   const suit = nw[0].suit;
   if (nw.some(c => c.suit !== suit)) return false;
@@ -1786,6 +1791,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState("");
   const [socket, setSocket] = useState(null);
+  const [selectedTheme, setSelectedTheme] = useState("shivaan");
 
   const gameStartedRef = useRef(false);
   const roomCodeRef = useRef("");
@@ -1815,7 +1821,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
       const room = payload?.room || payload;
       setRoomPlayers(room?.players || []);
     });
-    s.on("theme_changed", ({ theme }) => { setCardTheme(theme); });
+    s.on("theme_changed", ({ theme }) => { setCardTheme(theme); setSelectedTheme(theme); });
     s.on("deal_start", ({ playerNames }) => {
       gameStartedRef.current = true;
       onGameStart({ socket: s, playerNames, roomCode: roomCodeRef.current });
@@ -1928,14 +1934,15 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
             {Object.entries(CARD_THEME_LABELS).map(([key, label]) => (
               <button key={key} onClick={() => {
                 setCardTheme(key);
+                setSelectedTheme(key);
                 socket?.emit("set_theme", { code: roomCode, theme: key });
               }} style={{
                 flex: 1, padding: "10px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700,
-                background: CARD_BG === CARD_THEMES[key] ? "rgba(251,191,36,0.24)" : "rgba(255,255,255,0.07)",
-                color: CARD_BG === CARD_THEMES[key] ? "#fbbf24" : "rgba(255,255,255,0.5)",
-                border: CARD_BG === CARD_THEMES[key] ? "2px solid #fbbf24" : "1px solid rgba(255,255,255,0.1)",
-                boxShadow: CARD_BG === CARD_THEMES[key] ? "0 0 18px rgba(251,191,36,0.45)" : "none",
-                transform: CARD_BG === CARD_THEMES[key] ? "translateY(-2px) scale(1.03)" : "none",
+                background: selectedTheme === key ? "rgba(251,191,36,0.24)" : "rgba(255,255,255,0.07)",
+                color: selectedTheme === key ? "#fbbf24" : "rgba(255,255,255,0.5)",
+                border: selectedTheme === key ? "2px solid #fbbf24" : "1px solid rgba(255,255,255,0.1)",
+                boxShadow: selectedTheme === key ? "0 0 18px rgba(251,191,36,0.45)" : "none",
+                transform: selectedTheme === key ? "translateY(-2px) scale(1.03)" : "none",
                 cursor: "pointer",
               }}>{label}</button>
             ))}

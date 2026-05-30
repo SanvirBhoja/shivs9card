@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.7' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.9' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -51,8 +51,10 @@ function isDonutSet(cards){
   if(!nw.length)return false;
   const rank=nw[0].rank;
   if(!nw.every(c=>c.rank===rank))return false;
-  const suits=nw.map(c=>c.suit);
-  return new Set(suits).size===suits.length; // all different suits
+  const suits=new Set(nw.map(c=>c.suit));
+  if(suits.size!==nw.length)return false;          // real suits must all differ
+  const wildCount=cards.filter(c=>c.isWild).length;
+  return suits.size+wildCount>=4;                  // donkey set must cover all 4 shapes
 }
 
 // Returns the single suit used in a run-set (null if donkey/mixed)
@@ -87,6 +89,8 @@ function validMeld(cards){
   if(!nw.length)return false;
   // Donkey set: same rank, different suits
   if(isDonutSet(cards))return true;
+  // A alone with jokers is ambiguous (could be A-2-3 or Q-K-A) — needs another real card.
+  if(nw.length===1 && nw[0].rank==='A')return false;
   // Suit run
   const suit=nw[0].suit;
   if(nw.some(c=>c.suit!==suit))return false;
@@ -663,7 +667,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.7 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.0.9 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
