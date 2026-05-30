@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.10";
+const APP_VERSION = "v1.1.0";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -1287,17 +1287,20 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   function onDrop(e, idx) { e.preventDefault(); reorder(dragRef.current.idx, idx); setDragOver(null); }
   function onDragEnd() { setDragOver(null); dragRef.current = { id: null, idx: null }; }
 
-  function onTouchStart(e, id, idx) { touchRef.current = { active: true, from: idx, sx: e.touches[0].clientX, sy: e.touches[0].clientY, moved: false }; }
+  function onTouchStart(e, id, idx) {
+    if (e.touches.length > 1) { touchRef.current = { active: false }; return; }
+    touchRef.current = { active: true, from: idx, sx: e.touches[0].clientX, sy: e.touches[0].clientY, moved: false };
+  }
   function onTouchMove(e) {
-    if (!touchRef.current.active) return;
+    if (!touchRef.current.active || e.touches.length > 1) return;
     const dx = e.touches[0].clientX - touchRef.current.sx, dy = e.touches[0].clientY - touchRef.current.sy;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) touchRef.current.moved = true;
-    if (touchRef.current.moved) {
-      e.preventDefault();
-      const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-      const ci = el && el.closest("[data-ci]");
-      setDragOver(ci ? parseInt(ci.dataset.ci) : null);
-    }
+    const horizontalDrag = Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (!horizontalDrag) return; // allow normal vertical scroll
+    touchRef.current.moved = true;
+    e.preventDefault();
+    const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const ci = el && el.closest("[data-ci]");
+    setDragOver(ci ? parseInt(ci.dataset.ci) : null);
   }
   function onTouchEnd(e) {
     if (!touchRef.current.active) return;
@@ -1514,7 +1517,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#0a3a1c 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "6px 6px calc(140px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 800, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" }}>
+    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#0a3a1c 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "6px 6px calc(44px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 800, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Header — 2-row on small screens */}
       <div style={{ padding: "4px 6px", marginBottom: 6 }}>
@@ -1572,7 +1575,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
         {tableSets.length === 0 ? (
           <div style={{ opacity: 0.22, fontSize: 12, fontStyle: "italic" }}>No sets on the table yet...</div>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
             {tableSets.map((meld, idx) => {
               const isPT = placementIdx === idx;
               const isClickable = addMode && isMyTurn && !isPT && selCards.length === 1;
@@ -1637,15 +1640,6 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
         </div>
       </div>
 
-      {/* Discard history — last 5 discards */}
-      {discardPile.length > 1 && (
-        <div style={{ display: "flex", gap: 3, justifyContent: "center", alignItems: "center", marginBottom: 4, opacity: 0.55 }}>
-          <span style={{ fontSize: 8, opacity: 0.5, marginRight: 4, whiteSpace: "nowrap" }}>RECENT THROWS:</span>
-          {discardPile.slice(-6, -1).reverse().map((c, i) => (
-            <CardView key={i} card={c} small />
-          ))}
-        </div>
-      )}
 
       {/* Message */}
       <div style={{ background: "rgba(0,0,0,0.42)", borderRadius: 8, padding: "8px 14px", marginBottom: 6, fontSize: 12.5, textAlign: "center", minHeight: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1666,7 +1660,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
         </div>
 
         <div onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center", marginBottom: 12, minHeight: 80, alignItems: "flex-end", touchAction: "pan-y" }}>
+          style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center", marginBottom: 12, minHeight: 80, alignItems: "flex-end", touchAction: "pan-y pinch-zoom" }}>
           {human.hand.length === 0 ? (
             <div style={{ opacity: 0.25, fontSize: 13, display: "flex", alignItems: "center" }}>Hand is empty</div>
           ) : human.hand.map((c, i) => (
@@ -1686,7 +1680,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
 
         {/* Sticky action buttons — always visible at bottom */}
         {isMyTurn && (
-          <div style={{ position: "sticky", bottom: "env(safe-area-inset-bottom)", background: "rgba(10,58,28,0.97)", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 8px calc(12px + env(safe-area-inset-bottom))", margin: "0 -6px", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", zIndex: 100, maxWidth: "100%" }}>
+          <div style={{ position: "relative", background: "rgba(10,58,28,0.72)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "8px", margin: "8px 0 4px", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", zIndex: 1, maxWidth: "100%" }}>
             {phase === "draw" && (
               <React.Fragment>
                 <Btn onClick={drawFromDeck} bg="#16a34a">🎴 Pick Up</Btn>
@@ -1772,6 +1766,47 @@ function shareJoinLink(roomCode) {
   }
 }
 
+
+function onlineSeriesKey(roomCode) {
+  const code = String(roomCode || "").trim().toUpperCase();
+  return code ? `shiv9_online_series_${code}` : "";
+}
+
+function makeOnlineSeries(roomCode, playerNames = []) {
+  return {
+    n: playerNames.length,
+    players: playerNames.map((name, i) => ({
+      id: i,
+      name: name || ("Player " + (i + 1)),
+      isAI: false,
+      total: 0,
+      wins: 0,
+      consec: 0,
+    })),
+    round: 0,
+    roomCode,
+  };
+}
+
+function loadOnlineSeries(roomCode, playerNames = []) {
+  const key = onlineSeriesKey(roomCode);
+  if (!key) return makeOnlineSeries(roomCode, playerNames);
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+    if (saved && Array.isArray(saved.players) && saved.players.length === playerNames.length) {
+      return { ...saved, roomCode };
+    }
+  } catch (e) {}
+  return makeOnlineSeries(roomCode, playerNames);
+}
+
+function saveOnlineSeries(series) {
+  const key = onlineSeriesKey(series?.roomCode);
+  if (!key || !series?.players?.length) return;
+  try { localStorage.setItem(key, JSON.stringify(series)); } catch (e) {}
+}
+
+
 // ─── Online Lobby ─────────────────────────────────────────────
 function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
   // Pre-fill join code from URL param ?join=XXXXX
@@ -1818,16 +1853,18 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
     s.on("theme_changed", ({ theme }) => { setCardTheme(theme); setSelectedTheme(theme); });
     s.on("deal_start", ({ playerNames }) => {
       gameStartedRef.current = true;
-      onGameStart({ socket: s, playerNames, roomCode: roomCodeRef.current });
+      onGameStart({ socket: s, playerNames, roomCode: roomCodeRef.current, currentSeries: loadOnlineSeries(roomCodeRef.current, playerNames) });
     });
     s.on("game_state", (state) => {
       // If a player rejoins a game already in progress, move straight back into the game screen.
       if (!gameStartedRef.current && roomCodeRef.current) {
         gameStartedRef.current = true;
+        const names = (state.players || []).map(p => p.name);
         onGameStart({
           socket: s,
-          playerNames: (state.players || []).map(p => p.name),
+          playerNames: names,
           roomCode: roomCodeRef.current,
+          currentSeries: loadOnlineSeries(roomCodeRef.current, names),
         });
       }
     });
@@ -2281,6 +2318,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
   const [gameEnded, setGameEnded] = useState(null); // reason string — game was force-ended
   const roomCodeRef   = useRef(series?.roomCode || "");
   const onRoundEndRef = useRef(onRoundEnd);
+  const lastRoundEndRef = useRef(null);
   // Always keep ref current — prevents stale closure score bug
   useEffect(() => { onRoundEndRef.current = onRoundEnd; });
 
@@ -2335,6 +2373,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
 
     // Use named handlers so cleanup removes ONLY these, not all listeners
     function onGameState(state) {
+      if (state.winner === null || state.winner === undefined) lastRoundEndRef.current = null;
       const myI = state.myPlayerIdx ?? 0;
       setServerGame(prev => {
         if (prev && prev.currentPlayer !== myI &&
@@ -2363,6 +2402,9 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
     }
 
     function onRoundEndEvt({ winner, scores, wildWin }) {
+      const roundKey = JSON.stringify({ winner, wildWin: !!wildWin, totals: (scores || []).map(s => [s.id, s.total, s.wildWin]) });
+      if (lastRoundEndRef.current === roundKey) return;
+      lastRoundEndRef.current = roundKey;
       const winnerScore = (scores || []).find(s => s.id === winner) || (scores || [])[winner];
       setUi(u => ({ ...u, winnerAnnouncement: (winnerScore?.name || "Someone") + " wins this round! 🏆" }));
       setTimeout(() => {
@@ -2698,8 +2740,8 @@ export default function App() {
     <>
       <OnlineLobby
         onBack={() => setMode("home")}
-        onGameStart={({ socket, playerNames, roomCode }) => {
-          setOnlineData({ socket, roomCode, playerNames });
+        onGameStart={({ socket, playerNames, roomCode, currentSeries }) => {
+          setOnlineData({ socket, roomCode, playerNames, currentSeries: currentSeries || loadOnlineSeries(roomCode, playerNames || []) });
           setMode("online_game");
         }}
       />
@@ -2728,6 +2770,7 @@ export default function App() {
         };
         const updated = applySeriesFromServer(currentSeries, winner, gamePlayers, wildWin);
         const updatedWithRoom = { ...updated, roomCode: prev.roomCode };
+        saveOnlineSeries(updatedWithRoom);
         setRoundOverSeries(updatedWithRoom);
         return { ...prev, currentSeries: updatedWithRoom };
       });

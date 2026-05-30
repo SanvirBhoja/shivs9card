@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.10' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.1.0' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -214,6 +214,8 @@ function broadcastGame(roomCode, game){
   const room = rooms.get(roomCode);
   if(!room) return;
   if(game.winner !== null && game.winner !== undefined){
+    const emitRoundEnd = !room.roundEndEmitted;
+    if (emitRoundEnd) room.roundEndEmitted = true;
     // Game over — send full unhidden state + scores so all clients can show results
     const scores = game.players.map(p => {
       const base = serverScorePlayer(p);
@@ -232,7 +234,7 @@ function broadcastGame(roomCode, game){
     room.players.forEach((rp, idx) => {
       if(rp.socketId){
         io.to(rp.socketId).emit('game_state', { ...game, myPlayerIdx: idx, players: game.players });
-        io.to(rp.socketId).emit('round_end', { winner: game.winner, scores, wildWin: game.wildWin||false });
+        if (emitRoundEnd) io.to(rp.socketId).emit('round_end', { winner: game.winner, scores, wildWin: game.wildWin||false });
       }
     });
   } else {
@@ -328,6 +330,7 @@ io.on('connection', socket => {
     if(!rp?.isHost) return;
     if(room.players.length < 2){ socket.emit('error', 'Need at least 2 players'); return; }
     room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
+    room.roundEndEmitted = false;
     room.lastWinner = null;
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name) });
     setTimeout(() => broadcastGame(code, room.game), 4000);
@@ -341,6 +344,7 @@ io.on('connection', socket => {
     if(!rp) return;
     const startPlayer = room.lastWinner ?? 0;
     room.game = initGame(room.players.map(p => ({ name: p.name })), startPlayer);
+    room.roundEndEmitted = false;
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name), startPlayer });
     setTimeout(() => broadcastGame(code, room.game), 4000);
   });
@@ -348,6 +352,7 @@ io.on('connection', socket => {
   socket.on('game_action', ({ code, action, payload }) => {
     const room = rooms.get(code);
     if(!room?.game) return;
+    if(room.game.winner !== null && room.game.winner !== undefined) return;
     const myIdx = room.players.findIndex(p => p.socketId === socket.id);
     if(myIdx !== room.game.currentPlayer){ socket.emit('action_error', 'It is not your turn yet.'); return; }
 
@@ -534,6 +539,7 @@ io.on('connection', socket => {
     if (myIdx !== 0) return; // only host can trigger
     room.players.forEach(p => { p.ready = true; });
     room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
+    room.roundEndEmitted = false;
     room.lastWinner = null;
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
     io.to(roomCode).emit('deal_start', { playerNames: room.players.map(p => p.name) });
@@ -666,7 +672,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.10 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.1.0 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`

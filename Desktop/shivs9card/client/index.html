@@ -9,13 +9,15 @@
   <style>
     html, body, #root {
       min-height: 100%;
+      height: auto;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
     }
     body {
       margin: 0;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y pinch-zoom;
     }
   </style>
 </head>
