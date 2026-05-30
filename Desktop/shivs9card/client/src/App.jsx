@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.0.9";
+const APP_VERSION = "v1.0.10";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -319,11 +319,11 @@ function applySeriesFromServer(series, winnerId, gamePlayers, wildWin = false) {
       wins: sp.wins + (won ? 1 : 0),
       consec,
       lastPts: pts,
-      lastItems: gp?._serverItems || [],
+      lastItems: gp?._serverItems?.length ? gp._serverItems : (won && wildWin ? [{ label: "Won with Joker/Wild", pts: 30 }] : []),
       lastBonus: bonus,
       lastNoSet: gp?._serverNoSet || false,
       lastWildWin: won && wildWin,
-      lastHand: gp?.hand || [],
+      lastHand: (won && wildWin) ? [] : (gp?.hand || []),
     };
   });
   const roundStats = buildRoundStats(players, winnerId);
@@ -734,13 +734,7 @@ const SHIV9_STYLES = `
     50%      { box-shadow: 0 0 20px 4px rgba(251,191,36,0.6); border-color: rgba(251,191,36,0.9); }
   }
   .active-player-glow { animation: pulseGlow 1.4s ease-in-out infinite; border: 2px solid rgba(251,191,36,0.3); border-radius: 12px; }
-  @keyframes dealFlip {
-    0%   { transform: scaleX(1); }
-    45%  { transform: scaleX(0.1); }
-    55%  { transform: scaleX(0.1); }
-    100% { transform: scaleX(1); }
-  }
-  .deal-flip { animation: dealFlip 0.6s ease-in-out; }
+    .deal-flip { transform: none !important; }
 `;
 
 // ─── Pulse hook for active player indicator ───────────────────
@@ -793,10 +787,10 @@ function DealScreen({ game, onDone }) {
   useEffect(() => {
     if (phase !== "pause") return;
     const t1 = setTimeout(() => setPhase("flipping"), 500);
-    const t2 = setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1100);
-    const t3 = setTimeout(() => setShowWild(true), 1900);
-    const t4 = setTimeout(() => finishDeal(), 3800);
-    const failsafe = setTimeout(() => finishDeal(), 6500);
+    const t2 = setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1000);
+    const t3 = setTimeout(() => { setShowWild(true); setPhase("revealed"); }, 1600);
+    const t4 = setTimeout(() => finishDeal(), 4300);
+    const failsafe = setTimeout(() => finishDeal(), 7000);
     return () => [t1, t2, t3, t4, failsafe].forEach(clearTimeout);
   }, [phase, finishDeal]);
 
@@ -921,7 +915,7 @@ function DealScreen({ game, onDone }) {
           {/* Flip reveal — the card back shows first, then the face is revealed.
               Uses an opacity crossfade + a self-correcting scaleX flip (never a
               3D/backface flip, which repeatedly got stuck blank in the Android WebView). */}
-          <div className={cardFlipped ? "deal-flip" : ""} style={{
+          <div style={{
             position: "relative",
             width: 120, height: 168, borderRadius: 9,
             boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
@@ -1115,12 +1109,12 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: p.lastItems && p.lastItems.length ? 4 : 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</span>
-                  {isW && <span style={{ fontSize: 11, color: "#fbbf24" }}>⭐ WINS</span>}
-                  {isW && p.lastWildWin && <span style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>🃏 Joker win — no star</span>}
+                  {isW && <span style={{ fontSize: 11, color: "#fbbf24" }}>⭐ ROUND WIN</span>}
+                  {isW && p.lastWildWin && <span style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>🃏 Joker/Wild finish +30</span>}
                   {p.lastBonus < 0 && <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 700 }}>🎉 3-in-a-row! −50</span>}
                 </div>
-                <span style={{ fontWeight: 800, fontSize: 16, color: isW ? "#4ade80" : p.lastPts > 0 ? "#f87171" : "#fff" }}>
-                  {isW ? "0 pts" : "+" + p.lastPts + " pts"}
+                <span style={{ fontWeight: 800, fontSize: 16, color: isW && (p.lastPts || 0) === 0 ? "#4ade80" : (p.lastPts || 0) > 0 ? "#f87171" : "#fff" }}>
+                  {(p.lastPts || 0) > 0 ? "+" + p.lastPts + " pts" : "0 pts"}
                 </span>
               </div>
               {p.lastItems && p.lastItems.length > 0 && (
@@ -1520,7 +1514,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#0a3a1c 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "6px 6px calc(90px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 800, margin: "0 auto", overflowY: "visible", overflowX: "hidden", WebkitOverflowScrolling: "touch" }}>
+    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#0a3a1c 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "6px 6px calc(140px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 800, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" }}>
 
       {/* Header — 2-row on small screens */}
       <div style={{ padding: "4px 6px", marginBottom: 6 }}>
@@ -1804,12 +1798,12 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
     const s = io(SERVER, { transports: ["websocket", "polling"] });
     setSocket(s);
 
-    s.on("room_joined", ({ code, room, isHost: iH, playerToken }) => {
+    s.on("room_joined", ({ code, room, isHost: iH, playerToken, playerName: joinedName }) => {
+      const safeJoinedName = joinedName || playerName || sessionStorage.getItem("shiv9_name") || localStorage.getItem("shiv9_name") || "";
       roomCodeRef.current = code;
       sessionStorage.setItem("shiv9_room", code);
       localStorage.setItem("shiv9_room", code);
-      sessionStorage.setItem("shiv9_name", playerName);
-      localStorage.setItem("shiv9_name", playerName);
+      if (safeJoinedName) { sessionStorage.setItem("shiv9_name", safeJoinedName); localStorage.setItem("shiv9_name", safeJoinedName); setPlayerName(safeJoinedName); }
       if (playerToken) { sessionStorage.setItem("shiv9_token", playerToken); localStorage.setItem("shiv9_token", playerToken); }
       setRoomCode(code);
       setRoomPlayers(room.players);
@@ -1859,7 +1853,11 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
         <button onClick={() => setView("join")}   style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>🔗 Join with Code</button>
         {savedCode && savedName && (
           <button onClick={() => {
-            socket?.emit("rejoin_room", { code: savedCode, playerName: savedName, playerToken: savedToken });
+            roomCodeRef.current = savedCode;
+            setRoomCode(savedCode);
+            setPlayerName(savedName);
+            setError("");
+            socket?.emit("rejoin_room", { code: savedCode, playerName: savedName, playerToken: savedToken || "" });
           }} style={{ padding: "14px", borderRadius: 12, fontSize: 15, fontWeight: 800, background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer" }}>
             🔄 Rejoin {savedCode} as {savedName}
           </button>
@@ -2288,7 +2286,8 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
 
   useEffect(() => {
     if (series?.roomCode) roomCodeRef.current = series.roomCode;
-  }, [series?.roomCode]);
+    if (series) setSeries_(series);
+  }, [series?.roomCode, series?.round]);
 
   // On entering the game screen, ask the server for the current state. After a
   // rejoin the game_state can arrive while we're still on the lobby screen, so
@@ -2364,10 +2363,12 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
     }
 
     function onRoundEndEvt({ winner, scores, wildWin }) {
-      setUi(u => ({ ...u, winnerAnnouncement: (scores[winner]?.name || "Someone") + " wins this round! 🏆" }));
+      const winnerScore = (scores || []).find(s => s.id === winner) || (scores || [])[winner];
+      setUi(u => ({ ...u, winnerAnnouncement: (winnerScore?.name || "Someone") + " wins this round! 🏆" }));
       setTimeout(() => {
-        if (onRoundEndRef.current) onRoundEndRef.current({ winner, scores, wildWin });
-      }, 5000);
+        setUi(u => ({ ...u, winnerAnnouncement: null }));
+        if (onRoundEndRef.current) onRoundEndRef.current({ winner, scores: scores || [], wildWin });
+      }, 2500);
     }
 
     function onGameOver({ updatedSeries, reason }) {
@@ -2563,12 +2564,6 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
         }}>{ui.soundOn ? "🔊" : "🔇"}</button>
       </div>
       <GameScreen game={viewGame} setGame={setGameProxy} series={series_} onEnd={handleEnd} onAction={act} />
-      {(ui.moveHistory || []).length > 0 && (
-        <div style={{ position: "fixed", left: 8, bottom: 72, zIndex: 9996, maxWidth: 260, background: "rgba(0,0,0,0.48)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "8px 10px", color: "#fff", fontFamily: "Georgia,serif", fontSize: 11, opacity: 0.92 }}>
-          <div style={{ opacity: 0.5, fontSize: 9, letterSpacing: 1, marginBottom: 3 }}>MOVE HISTORY</div>
-          {(ui.moveHistory || []).slice(-3).map((m, i) => <div key={i} style={{ marginTop: 2 }}>{m}</div>)}
-        </div>
-      )}
       <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} />
     </>
   );
@@ -2723,9 +2718,12 @@ export default function App() {
           _serverItems: s.items || [],
           _serverNoSet: s.noSet === true,
         }));
+        const namesForSeries = (prev.playerNames && prev.playerNames.length)
+          ? prev.playerNames
+          : scores.map(s => s.name || ("Player " + (s.id + 1)));
         const currentSeries = prev.currentSeries || {
-          n: (prev.playerNames || []).length,
-          players: (prev.playerNames || []).map((n, i) => ({ id: i, name: n, isAI: false, total: 0, wins: 0, consec: 0 })),
+          n: namesForSeries.length,
+          players: namesForSeries.map((n, i) => ({ id: i, name: n, isAI: false, total: 0, wins: 0, consec: 0 })),
           round: 0, roomCode: prev.roomCode,
         };
         const updated = applySeriesFromServer(currentSeries, winner, gamePlayers, wildWin);

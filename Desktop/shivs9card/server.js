@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.9' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.10' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -256,7 +256,7 @@ io.on('connection', socket => {
     };
     rooms.set(code, room);
     socket.join(code);
-    socket.emit('room_joined', { code, room: sanitiseRoom(room), isHost: true, playerToken: room.players[0].token });
+    socket.emit('room_joined', { code, room: sanitiseRoom(room), isHost: true, playerToken: room.players[0].token, playerName });
   });
 
   socket.on('join_room', ({ code, playerName, playerToken }) => {
@@ -296,6 +296,7 @@ io.on('connection', socket => {
         isHost: !!room.players[existingIdx].isHost,
         rejoined: true,
         playerToken: room.players[existingIdx].token,
+        playerName: room.players[existingIdx].name,
       });
 
       io.to(roomCode).emit('room_updated', sanitiseRoom(room));
@@ -317,7 +318,7 @@ io.on('connection', socket => {
     room.players.push(newPlayer);
     socket.join(roomCode);
     io.to(roomCode).emit('room_updated', sanitiseRoom(room));
-    socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: false, playerToken: newPlayer.token });
+    socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: false, playerToken: newPlayer.token, playerName: newPlayer.name });
   });
 
   socket.on('start_game', ({ code }) => {
@@ -526,19 +527,17 @@ io.on('connection', socket => {
 
   // Rematch — reset scores, keep same players, start new series
   socket.on('rematch', ({ code }) => {
-    const room = rooms.get(code?.toUpperCase());
+    const roomCode = String(code || '').trim().toUpperCase();
+    const room = rooms.get(roomCode);
     if (!room || !room.game) return;
     const myIdx = room.players.findIndex(p => p.socketId === socket.id);
     if (myIdx !== 0) return; // only host can trigger
-    // Reset player stats but keep names
-    room.players.forEach(p => { p.ready = false; p.wins = 0; p.total = 0; });
-    room.game = null;
-    io.to(code.toUpperCase()).emit('room_updated', { room: sanitiseRoom(room) });
-    // Trigger a fresh deal
-    const g = dealGame(room.players.map((p,i) => ({ id: i, name: p.name, isAI: false })));
-    room.game = g;
-    room.players.forEach((p, i) => io.to(p.socketId).emit('deal_start', { playerNames: room.players.map(p => p.name) }));
-    setTimeout(() => { room.players.forEach((_, i) => { if(room.game) io.to(room.players[i].socketId).emit('game_state', playerView(room.game, i)); }); }, 800);
+    room.players.forEach(p => { p.ready = true; });
+    room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
+    room.lastWinner = null;
+    io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
+    io.to(roomCode).emit('deal_start', { playerNames: room.players.map(p => p.name) });
+    setTimeout(() => broadcastGame(roomCode, room.game), 4000);
   });
 
   // Chat
@@ -598,7 +597,7 @@ io.on('connection', socket => {
       delete room.dcTimers[room.players[idx].token];
     }
     socket.join(roomCode);
-    socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: room.players[idx].isHost, rejoined: true, playerToken: room.players[idx].token });
+    socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: room.players[idx].isHost, rejoined: true, playerToken: room.players[idx].token, playerName: room.players[idx].name });
     io.to(roomCode).emit('player_reconnected', { name: room.players[idx].name });
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
     socket.emit('game_state', playerView(room.game, idx));
@@ -667,7 +666,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.0.9 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.0.10 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
