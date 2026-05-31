@@ -1522,7 +1522,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(96px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(126px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
@@ -2581,6 +2581,21 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
               background: "rgba(92,45,45,0.92)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", flexShrink: 0,
             }}>End 🚪</button>
           </div>
+          {/* Row 3: Player scores — always visible */}
+          {series_?.players && (
+            <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+              {series_.players.map(p => {
+                const turnName = viewGame?.players?.[viewGame?.currentPlayer]?.name;
+                const isTurn = p.name === turnName;
+                return (
+                  <div key={p.id} style={{ flex: 1, background: isTurn ? "rgba(212,175,55,0.18)" : "rgba(0,0,0,0.25)", border: isTurn ? "1.5px solid #f8d36f" : "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "3px 6px", textAlign: "center", transition: "all 0.3s" }}>
+                    <div style={{ fontSize: 9, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}{isTurn ? " • TURN" : ""}</div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: isTurn ? "#f8d36f" : "#fff" }}>{p.total || 0}<span style={{ fontSize: 8, opacity: 0.4 }}> pts</span></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
       <GameScreen game={viewGame} setGame={setGameProxy} series={series_} onEnd={handleEnd} onAction={act} />
