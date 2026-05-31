@@ -1034,7 +1034,7 @@ function SetupScreen({ onStart, onBack }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24 }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 480, marginBottom: 28 }}>
         <GameLogo />
       </div>
@@ -1101,7 +1101,7 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
   const stars = n => "⭐".repeat(Math.min(n, 8));
 
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto" }}>
       <div style={{ fontSize: 48, marginBottom: 6 }}>🏆</div>
       <h2 style={{ fontSize: 26, margin: "0 0 4px", fontWeight: 900 }}>Round {series.round} Complete!</h2>
       <p style={{ opacity: 0.6, marginBottom: 24, fontSize: 14 }}>{winner ? winner.name : "?"} won this round!</p>
@@ -1204,7 +1204,7 @@ function GameOverScreen({ series, onNew, onRematch, onRecentGames }) {
   const sorted = [...series.players].sort((a, b) => a.total - b.total);
   const medals = ["🥇", "🥈", "🥉", "4️⃣"];
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ fontSize: 64, marginBottom: 10 }}>🏆</div>
       <h1 style={{ fontSize: 38, margin: "0 0 4px", fontWeight: 900 }}>Game Over!</h1>
       <p style={{ opacity: 0.4, marginBottom: 4, fontSize: 12, letterSpacing: 2 }}>SHIV'S 9 CARD</p>
@@ -1522,7 +1522,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(126px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(90px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
@@ -1841,7 +1841,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
     const savedName = sessionStorage.getItem("shiv9_name") || localStorage.getItem("shiv9_name");
     const savedToken = sessionStorage.getItem("shiv9_token") || localStorage.getItem("shiv9_token");
     return (
-    <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24 }}>
+    <div style={{ height: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ fontSize: 52, marginBottom: 8 }}>🃏</div>
       <h1 style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3, marginBottom: 4, textAlign: "center" }}>Shivaan's 9 Card</h1>
       <p style={{ opacity: 0.45, marginBottom: 40, fontSize: 13, letterSpacing: 2 }}>ONLINE MULTIPLAYER</p>
@@ -1865,7 +1865,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
   );}
 
   if (view === "create" || view === "join") return (
-    <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24 }}>
+    <div style={{ height: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 28, letterSpacing: 2 }}>{view === "create" ? "🏠 Create Game" : "🔗 Join Game"}</h2>
       <div style={{ width: "100%", maxWidth: 340, display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
@@ -1895,7 +1895,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
   if (view === "waiting") {
     const shareUrl = getOnlineJoinUrl(roomCode);
     return (
-    <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24 }}>
+    <div style={{ height: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}>Waiting Room</h2>
       <div style={{ fontSize: 28, fontWeight: 900, color: "#fbbf24", letterSpacing: 6, marginBottom: 4 }}>{roomCode}</div>
       <div style={{ fontSize: 11, opacity: 0.4, marginBottom: 6 }}>Share this code with friends</div>
@@ -2036,7 +2036,7 @@ function RecentGamesScreen({ onClose }) {
   const medals = ["🥇", "🥈", "🥉", "4.", "5."];
 
   return (
-    <div style={{ minHeight: "100svh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto" }}>
+    <div style={{ height: "100svh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
       <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: 2, marginBottom: 4 }}>Recent Games</h1>
       <p style={{ opacity: 0.45, marginBottom: 28, fontSize: 12, letterSpacing: 2 }}>LAST 5 ONLINE SERIES</p>
@@ -2090,7 +2090,7 @@ function RecentGamesScreen({ onClose }) {
 // ─── Mode Select ─────────────────────────────────────────────
 function ModeSelect({ onOffline, onOnline, onRecentGames }) {
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24 }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 520, marginBottom: 32 }}>
         <GameLogo />
       </div>
@@ -2417,7 +2417,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
   }
 
   if (!serverGame) return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(#1b6b3a,#072515)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(#1b6b3a,#072515)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif" }}>
       <div style={{ textAlign: "center" }}><div style={{ fontSize: 36, marginBottom: 12 }}>🃏</div><div style={{ opacity: 0.6 }}>Connecting…</div></div>
     </div>
   );
@@ -2539,8 +2539,9 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
         </div>
       )}
       {dcNotice && (
-        <div style={{ position: "fixed", top: 44, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(245,158,11,0.96)", color: "#1c1c1c", borderRadius: 999, padding: "8px 16px", fontFamily: "Georgia,serif", fontSize: 12.5, fontWeight: 800, boxShadow: "0 4px 18px rgba(0,0,0,0.35)", textAlign: "center", maxWidth: "92vw" }}>
-          ⚠️ {dcNotice.name} disconnected — waiting {Math.max(0, dcNotice.seconds)}s to rejoin…
+        <div style={{ position: "fixed", top: 50, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(245,158,11,0.97)", color: "#1c1c1c", borderRadius: 14, padding: "10px 18px", fontFamily: "Georgia,serif", fontSize: 12, fontWeight: 800, boxShadow: "0 6px 24px rgba(0,0,0,0.45)", textAlign: "center", maxWidth: "88vw" }}>
+          <div>⚠️ {dcNotice.name} disconnected — {Math.max(0, dcNotice.seconds)}s to rejoin…</div>
+          <button onClick={handleEnd} style={{ marginTop: 8, padding: "6px 18px", borderRadius: 8, fontSize: 11, fontWeight: 900, background: "#991b1b", color: "#fff", border: "none", cursor: "pointer" }}>End Game Now</button>
         </div>
       )}
       <div style={{
@@ -2557,40 +2558,38 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
         boxSizing: "border-box",
       }}>
         <div style={{ maxWidth: 860, margin: "0 auto" }}>
-          {/* Row 1: Room code + Share */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.36)", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 10, padding: "6px 10px" }}>
-              <span style={{ fontSize: 9, opacity: 0.5 }}>ROOM</span>
-              <strong style={{ fontSize: 15, letterSpacing: 3, color: "#f8d36f" }}>{roomCodeRef.current}</strong>
+          {/* Row 1: Room code + controls — all compact */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.36)", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 8, padding: "4px 8px" }}>
+              <span style={{ fontSize: 8, opacity: 0.4 }}>ROOM</span>
+              <strong style={{ fontSize: 11, letterSpacing: 2, color: "#f8d36f" }}>{roomCodeRef.current}</strong>
             </div>
             <button onClick={() => shareJoinLink(roomCodeRef.current)} style={{
-              border: "none", borderRadius: 10, padding: "8px 14px",
+              border: "none", borderRadius: 8, padding: "6px 10px",
               background: "linear-gradient(180deg,#2563eb,#1d4ed8)", color: "#fff",
-              fontSize: 12, fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 10px rgba(37,99,235,0.28)", flexShrink: 0,
-            }}>🔗 Share</button>
-          </div>
-          {/* Row 2: Chat, Audio, End */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              fontSize: 10, fontWeight: 900, cursor: "pointer", flexShrink: 0,
+            }}>🔗</button>
+            <div style={{ flex: 1 }} />
             <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} headerMode />
             <button onClick={() => setUi(u => { const next = !u.soundOn; localStorage.setItem("shiv9_sound", next ? "on" : "off"); return { ...u, soundOn: next }; })} style={{
-              height: 34, padding: "0 12px", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 10,
-              background: "rgba(15,23,42,0.92)", color: "#fff", fontSize: 15, cursor: "pointer", flexShrink: 0,
+              width: 34, height: 30, border: "1px solid rgba(212,175,55,0.4)", borderRadius: 8,
+              background: "rgba(15,23,42,0.92)", color: "#fff", fontSize: 14, cursor: "pointer", flexShrink: 0,
             }}>{ui.soundOn ? "🔊" : "🔇"}</button>
             <button onClick={handleEnd} style={{
-              height: 34, padding: "0 12px", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 10,
-              background: "rgba(92,45,45,0.92)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", flexShrink: 0,
-            }}>End 🚪</button>
+              height: 30, padding: "0 10px", border: "1px solid rgba(212,175,55,0.4)", borderRadius: 8,
+              background: "rgba(120,40,40,0.92)", color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer", flexShrink: 0,
+            }}>End</button>
           </div>
-          {/* Row 3: Player scores — always visible */}
+          {/* Row 2: Player scores — always visible */}
           {series_?.players && (
-            <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+            <div style={{ display: "flex", gap: 4 }}>
               {series_.players.map(p => {
                 const turnName = viewGame?.players?.[viewGame?.currentPlayer]?.name;
                 const isTurn = p.name === turnName;
                 return (
-                  <div key={p.id} style={{ flex: 1, background: isTurn ? "rgba(212,175,55,0.18)" : "rgba(0,0,0,0.25)", border: isTurn ? "1.5px solid #f8d36f" : "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "3px 6px", textAlign: "center", transition: "all 0.3s" }}>
-                    <div style={{ fontSize: 9, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}{isTurn ? " • TURN" : ""}</div>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: isTurn ? "#f8d36f" : "#fff" }}>{p.total || 0}<span style={{ fontSize: 8, opacity: 0.4 }}> pts</span></div>
+                  <div key={p.id} style={{ flex: 1, background: isTurn ? "rgba(212,175,55,0.2)" : "rgba(0,0,0,0.3)", border: isTurn ? "1.5px solid #f8d36f" : "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: isTurn ? "#f8d36f" : "#ccc", fontWeight: isTurn ? 800 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}{isTurn ? " • TURN" : ""}</div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{p.total || 0}<span style={{ fontSize: 9, color: "#aaa" }}> pts</span></div>
                   </div>
                 );
               })}
