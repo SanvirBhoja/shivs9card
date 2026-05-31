@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.2.0' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.3.0' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -665,7 +665,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.2.0 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.3.0 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.3.0";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -734,7 +734,13 @@ const SHIV9_STYLES = `
     50%      { box-shadow: 0 0 20px 4px rgba(251,191,36,0.6); border-color: rgba(251,191,36,0.9); }
   }
   .active-player-glow { animation: pulseGlow 1.4s ease-in-out infinite; border: 2px solid rgba(251,191,36,0.3); border-radius: 12px; }
-    .deal-flip { transform: none !important; }
+  @keyframes dealFlip {
+    0%   { transform: scaleX(1); }
+    45%  { transform: scaleX(0.1); }
+    55%  { transform: scaleX(0.1); }
+    100% { transform: scaleX(1); }
+  }
+  .deal-flip { animation: dealFlip 0.6s ease-in-out; }
 `;
 
 // ─── Pulse hook for active player indicator ───────────────────
@@ -915,7 +921,7 @@ function DealScreen({ game, onDone }) {
           {/* Flip reveal — the card back shows first, then the face is revealed.
               Uses an opacity crossfade + a self-correcting scaleX flip (never a
               3D/backface flip, which repeatedly got stuck blank in the Android WebView). */}
-          <div style={{
+          <div className={cardFlipped ? "deal-flip" : ""} style={{
             position: "relative",
             width: 120, height: 168, borderRadius: 9,
             boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
@@ -1516,7 +1522,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(72px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "visible", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(72px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
@@ -1656,7 +1662,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
         </div>
 
         <div onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center", marginBottom: 12, minHeight: 80, alignItems: "flex-end", touchAction: "pan-y" }}>
+          style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center", marginBottom: 12, minHeight: 80, alignItems: "flex-end", touchAction: "pan-y pinch-zoom" }}>
           {human.hand.length === 0 ? (
             <div style={{ opacity: 0.25, fontSize: 13, display: "flex", alignItems: "center" }}>Hand is empty</div>
           ) : human.hand.map((c, i) => (
@@ -1807,6 +1813,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
     });
     s.on("theme_changed", ({ theme }) => { setCardTheme(theme); setSelectedTheme(theme); });
     s.on("deal_start", ({ playerNames }) => {
+      if (gameStartedRef.current) return; // already in game — next round dealt by App-level listener
       gameStartedRef.current = true;
       onGameStart({ socket: s, playerNames, roomCode: roomCodeRef.current });
     });
