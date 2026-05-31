@@ -775,11 +775,13 @@ function DealScreen({ game, onDone }) {
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showWild, setShowWild] = useState(false);
   const doneRef = useRef(false);
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
   const finishDeal = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
-    onDone();
-  }, [onDone]);
+    onDoneRef.current();
+  }, []);
 
   // Drive the dealing counter forward
   useEffect(() => {
@@ -798,7 +800,7 @@ function DealScreen({ game, onDone }) {
     const t4 = setTimeout(() => finishDeal(), 4300);
     const failsafe = setTimeout(() => finishDeal(), 7000);
     return () => [t1, t2, t3, t4, failsafe].forEach(clearTimeout);
-  }, [phase, finishDeal]);
+  }, [phase]);
 
   // Cards dealt to each player at current step
   // Step s deals card to player (s-1)%n  (step 1 = player 0, step 2 = player 1, ...)
@@ -1521,13 +1523,19 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
     if (game.winner !== null && game.winner !== undefined) Sounds.win();
   }, [game.winner]);
 
+  const isOnlineGame = !!series?.roomCode;
+  const topPad = isOnlineGame ? 90 : 14;
+
   return (
-    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(90px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: `calc(${topPad}px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))`, boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: 1.4, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.55)", flex: 1 }}>🃏 Shivaan's 9 Card</div>
+          {!isOnlineGame && onEnd && (
+            <button onClick={onEnd} style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, background: "rgba(120,40,40,0.92)", color: "#fff", border: "1px solid rgba(212,175,55,0.4)", cursor: "pointer" }}>End 🚪</button>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
           {series && series.players.map(p => (
