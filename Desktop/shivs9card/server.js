@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.1.0' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.0.10' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -214,8 +214,6 @@ function broadcastGame(roomCode, game){
   const room = rooms.get(roomCode);
   if(!room) return;
   if(game.winner !== null && game.winner !== undefined){
-    const emitRoundEnd = !room.roundEndEmitted;
-    if (emitRoundEnd) room.roundEndEmitted = true;
     // Game over — send full unhidden state + scores so all clients can show results
     const scores = game.players.map(p => {
       const base = serverScorePlayer(p);
@@ -234,7 +232,7 @@ function broadcastGame(roomCode, game){
     room.players.forEach((rp, idx) => {
       if(rp.socketId){
         io.to(rp.socketId).emit('game_state', { ...game, myPlayerIdx: idx, players: game.players });
-        if (emitRoundEnd) io.to(rp.socketId).emit('round_end', { winner: game.winner, scores, wildWin: game.wildWin||false });
+        io.to(rp.socketId).emit('round_end', { winner: game.winner, scores, wildWin: game.wildWin||false });
       }
     });
   } else {
@@ -330,7 +328,6 @@ io.on('connection', socket => {
     if(!rp?.isHost) return;
     if(room.players.length < 2){ socket.emit('error', 'Need at least 2 players'); return; }
     room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
-    room.roundEndEmitted = false;
     room.lastWinner = null;
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name) });
     setTimeout(() => broadcastGame(code, room.game), 4000);
@@ -344,7 +341,6 @@ io.on('connection', socket => {
     if(!rp) return;
     const startPlayer = room.lastWinner ?? 0;
     room.game = initGame(room.players.map(p => ({ name: p.name })), startPlayer);
-    room.roundEndEmitted = false;
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name), startPlayer });
     setTimeout(() => broadcastGame(code, room.game), 4000);
   });
@@ -352,7 +348,6 @@ io.on('connection', socket => {
   socket.on('game_action', ({ code, action, payload }) => {
     const room = rooms.get(code);
     if(!room?.game) return;
-    if(room.game.winner !== null && room.game.winner !== undefined) return;
     const myIdx = room.players.findIndex(p => p.socketId === socket.id);
     if(myIdx !== room.game.currentPlayer){ socket.emit('action_error', 'It is not your turn yet.'); return; }
 
@@ -539,7 +534,6 @@ io.on('connection', socket => {
     if (myIdx !== 0) return; // only host can trigger
     room.players.forEach(p => { p.ready = true; });
     room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
-    room.roundEndEmitted = false;
     room.lastWinner = null;
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
     io.to(roomCode).emit('deal_start', { playerNames: room.players.map(p => p.name) });
@@ -643,12 +637,13 @@ io.on('connection', socket => {
         if(idx===0 && room.players.length) room.players[0].isHost=true;
         io.to(code).emit('room_updated', sanitiseRoom(room));
       } else {
-        // Mid-game disconnect: hold the seat, give 30s to rejoin, then end the game for everyone.
+        // Mid-game disconnect: hold the seat so the same player can rejoin.
+        // We do NOT delete/end the room automatically; mobile networks can sleep apps for longer than 30 seconds.
         const player = room.players[idx];
         player.socketId = null;
         const GRACE_SECONDS = 30;
         io.to(code).emit('player_disconnected', { name: player.name, seconds: GRACE_SECONDS });
-        io.to(code).emit('system_message', { text: `⚠️ ${player.name} disconnected — ${GRACE_SECONDS}s to rejoin…`, ts: Date.now() });
+        io.to(code).emit('system_message', { text: `⚠️ ${player.name} disconnected — waiting for rejoin…`, ts: Date.now() });
         room.dcTimers = room.dcTimers || {};
         if (room.dcTimers[player.token]) clearTimeout(room.dcTimers[player.token]);
         room.dcTimers[player.token] = setTimeout(() => {
@@ -656,9 +651,7 @@ io.on('connection', socket => {
           if (!r) return;
           const p = r.players.find(pp => pp.token === player.token);
           if (p && !p.socketId) {
-            io.to(code).emit('game_over', { reason: `${player.name} did not reconnect in time.` });
-            io.to(code).emit('system_message', { text: `🏁 Game ended — ${player.name} did not reconnect.`, ts: Date.now() });
-            rooms.delete(code);
+            io.to(code).emit('system_message', { text: `⏳ ${player.name} is still disconnected. Game is paused until they rejoin.`, ts: Date.now() });
           }
         }, GRACE_SECONDS * 1000);
       }
@@ -672,7 +665,7 @@ function sanitiseRoom(room){
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🃏 Shiv's 9 Card server v1.1.0 running on port ${PORT}`);
+  console.log(`🃏 Shiv's 9 Card server v1.1.1 running on port ${PORT}`);
   // Keep Railway alive — ping every 9 minutes
   const BASE = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
