@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.1.1";
+const APP_VERSION = "v1.2.0";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -1291,13 +1291,15 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   function onTouchMove(e) {
     if (!touchRef.current.active) return;
     const dx = e.touches[0].clientX - touchRef.current.sx, dy = e.touches[0].clientY - touchRef.current.sy;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) touchRef.current.moved = true;
-    if (touchRef.current.moved) {
-      e.preventDefault();
-      const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-      const ci = el && el.closest("[data-ci]");
-      setDragOver(ci ? parseInt(ci.dataset.ci) : null);
-    }
+    // Allow normal vertical scrolling when the user is moving mostly up/down.
+    // Only treat it as card reordering when the movement is clearly horizontal.
+    const horizontalDrag = Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) + 8;
+    if (!horizontalDrag) return;
+    touchRef.current.moved = true;
+    e.preventDefault();
+    const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const ci = el && el.closest("[data-ci]");
+    setDragOver(ci ? parseInt(ci.dataset.ci) : null);
   }
   function onTouchEnd(e) {
     if (!touchRef.current.active) return;
@@ -1514,30 +1516,28 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 20%,#17171d 0%,#0b1020 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "54px 6px calc(220px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 800, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ minHeight: "100dvh", height: "auto", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(72px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "visible", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
-      {/* Header — 2-row on small screens */}
-      <div style={{ padding: "4px 6px", marginBottom: 6 }}>
-        {/* Row 1: title + scores */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <div style={{ fontWeight: 900, fontSize: 13, letterSpacing: 1, flexShrink: 0 }}>🃏 Shivaan's 9 Card</div>
-          <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {series && series.players.map(p => (
-              <div key={p.id} style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", borderRadius: 6, padding: "2px 6px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <span style={{ opacity: 0.65 }}>{p.name}</span>
-                {p.wins > 0 && <span style={{ color: "#fbbf24", marginLeft: 2 }}>{"⭐".repeat(Math.min(p.wins, 3))}</span>}
-                <span style={{ marginLeft: 3, fontWeight: 700 }}>{p.total}pt</span>
-              </div>
-            ))}
-          </div>
+      {/* Game title + scoreboard */}
+      <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: 1.4, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.55)", flex: 1 }}>🃏 Shivaan's 9 Card</div>
         </div>
-        {/* Row 2: Round, Joker rank, room code, End button */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-          <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
-            {series && <span style={{ fontSize: 10, opacity: 0.5, background: "rgba(0,0,0,0.3)", borderRadius: 5, padding: "2px 5px" }}>Round {series.round + 1}</span>}
-            <span style={{ fontSize: 10, opacity: 0.6 }}>Joker: <span style={{ color: "#fbbf24", fontWeight: 700 }}>{wildRank}s</span></span>
-          </div>
-          <Btn onClick={onEnd} small>🚪 End</Btn>
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
+          {series && series.players.map(p => (
+            <div key={p.id} style={{ flex: "1 1 96px", minWidth: 96, background: "linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.28))", borderRadius: 12, padding: "7px 9px", border: p.id === currentPlayer ? "1.5px solid rgba(212,175,55,0.75)" : "1px solid rgba(212,175,55,0.18)", boxShadow: p.id === currentPlayer ? "0 0 14px rgba(212,175,55,0.18)" : "none" }}>
+              <div style={{ fontSize: 11, opacity: 0.72, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}{p.id === currentPlayer ? " • TURN" : ""}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 21, fontWeight: 900, color: "#f8d36f" }}>{p.total}</span>
+                <span style={{ fontSize: 10, opacity: 0.55 }}>pts</span>
+                {p.wins > 0 && <span style={{ color: "#fbbf24", marginLeft: 3, fontSize: 10 }}>{"⭐".repeat(Math.min(p.wins, 3))}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, fontSize: 12, opacity: 0.72 }}>
+          {series && <span style={{ background: "rgba(0,0,0,0.32)", borderRadius: 999, padding: "4px 9px" }}>Round {series.round + 1}</span>}
+          <span>Joker: <span style={{ color: "#f8d36f", fontWeight: 900 }}>{wildRank}s</span></span>
         </div>
       </div>
 
@@ -1567,7 +1567,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       )}
 
       {/* Table */}
-      <div style={{ background: "rgba(0,0,0,0.26)", borderRadius: 10, padding: "10px 12px", marginBottom: 8, minHeight: 72, maxHeight: "38dvh", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom", border: "1px solid rgba(212,175,55,0.18)" }}>
+      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.34))", borderRadius: 14, padding: "12px 14px", marginBottom: 10, minHeight: 92, maxHeight: "34dvh", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom", border: "1px solid rgba(212,175,55,0.34)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.025),0 8px 24px rgba(0,0,0,0.22)" }}>
         <div style={{ fontSize: 10, letterSpacing: 2, opacity: 0.35, marginBottom: 6 }}>TABLE</div>
         {tableSets.length === 0 ? (
           <div style={{ opacity: 0.22, fontSize: 12, fontStyle: "italic" }}>No sets on the table yet...</div>
@@ -1643,7 +1643,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       </div>
 
       {/* Hand */}
-      <div style={{ background: "rgba(0,0,0,0.32)", borderRadius: 12, padding: "10px 8px 14px", marginBottom: 22, border: isMyTurn ? `1px solid rgba(251,191,36,${pulse ? 0.6 : 0.15})` : "1px solid rgba(255,255,255,0.05)", boxShadow: isMyTurn && pulse ? "0 0 14px rgba(251,191,36,0.25)" : "none", transition: "border-color 0.4s, box-shadow 0.4s", touchAction: "pan-y pinch-zoom" }}>
+      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.36))", borderRadius: 16, padding: "12px 10px 14px", marginBottom: 10, border: isMyTurn ? `1.5px solid rgba(212,175,55,${pulse ? 0.82 : 0.42})` : "1px solid rgba(212,175,55,0.14)", boxShadow: isMyTurn && pulse ? "0 0 18px rgba(212,175,55,0.22)" : "0 10px 22px rgba(0,0,0,0.18)", transition: "border-color 0.4s, box-shadow 0.4s", touchAction: "pan-y pinch-zoom" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 11, opacity: 0.5, letterSpacing: 1, display: "flex", gap: 8, alignItems: "center" }}>
             {human.name}'s HAND ({human.hand.length})
@@ -1676,7 +1676,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
 
         {/* Sticky action buttons — always visible at bottom */}
         {isMyTurn && (
-          <div style={{ position: "relative", background: "rgba(17,24,39,0.96)", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 12, padding: "10px 8px", margin: "8px 0 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", zIndex: 5, maxWidth: "100%" }}>
+          <div style={{ position: "relative", background: "rgba(8,10,16,0.96)", border: "1px solid rgba(212,175,55,0.32)", borderRadius: 14, padding: "10px 8px", margin: "8px 0 0", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", zIndex: 5, maxWidth: "100%", boxShadow: "0 8px 20px rgba(0,0,0,0.28)" }}>
             {phase === "draw" && (
               <React.Fragment>
                 <Btn onClick={drawFromDeck} bg="#16a34a">🎴 Pick Up</Btn>
@@ -2108,7 +2108,7 @@ function ModeSelect({ onOffline, onOnline, onRecentGames }) {
 
 // ─── Online Game Screen ────────────────────────────────────────
 // ─── Chat ────────────────────────────────────────────────────
-function ChatChat({ socket, roomCode, playerName }) {
+function ChatChat({ socket, roomCode, playerName, headerMode = false }) {
   const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput]     = useState("");
@@ -2145,10 +2145,20 @@ function ChatChat({ socket, roomCode, playerName }) {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Header / floating chat button */}
       <button
         onClick={() => setOpen(o => !o)}
-        style={{
+        title="Chat"
+        style={headerMode ? {
+          position: "relative", zIndex: 20,
+          width: 42, height: 38, borderRadius: 14,
+          background: open ? "rgba(124,58,237,0.95)" : "rgba(15,23,42,0.92)",
+          border: "1px solid rgba(212,175,55,0.45)",
+          color: "#fff", fontSize: 18, cursor: "pointer",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.2s", flexShrink: 0,
+        } : {
           position: "fixed", top: "calc(10px + env(safe-area-inset-top))", right: 10, zIndex: 9999,
           width: 50, height: 50, borderRadius: "50%",
           background: open ? "#7c3aed" : "#1d4ed8",
@@ -2172,9 +2182,9 @@ function ChatChat({ socket, roomCode, playerName }) {
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: "fixed", top: "calc(62px + env(safe-area-inset-top))", right: 10, zIndex: 9998,
-          width: Math.min(300, window.innerWidth - 28),
-          maxHeight: 360, background: "rgba(10,20,35,0.97)",
+          position: "fixed", top: headerMode ? "calc(72px + env(safe-area-inset-top))" : "calc(62px + env(safe-area-inset-top))", right: 10, zIndex: 9998,
+          width: Math.min(320, window.innerWidth - 22),
+          maxHeight: Math.min(430, window.innerHeight - 110), background: "rgba(10,20,35,0.98)",
           border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16,
           display: "flex", flexDirection: "column",
           boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
@@ -2528,33 +2538,40 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
       )}
       <div style={{
         position: "fixed",
-        left: 8,
-        top: "calc(10px + env(safe-area-inset-top))",
+        left: 0,
+        right: 0,
+        top: 0,
         zIndex: 9997,
-        background: "rgba(0,0,0,0.58)", color: "#fff",
-        border: "1px solid rgba(255,255,255,0.18)", borderRadius: 10,
-        padding: "5px 7px", fontFamily: "Georgia,serif",
-        display: "flex", alignItems: "center", gap: 6,
-        backdropFilter: "blur(8px)",
-        maxWidth: "calc(100vw - 92px)",
-        transform: "scale(0.88)",
-        transformOrigin: "top left",
+        padding: "calc(8px + env(safe-area-inset-top)) 10px 8px",
+        background: "linear-gradient(180deg,rgba(5,6,10,0.98),rgba(10,11,17,0.90))",
+        borderBottom: "1px solid rgba(212,175,55,0.22)",
+        boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+        backdropFilter: "blur(10px)",
+        boxSizing: "border-box",
       }}>
-        <span style={{ fontSize: 10, opacity: 0.55 }}>ROOM</span>
-        <strong style={{ fontSize: 13, letterSpacing: 2, color: "#fbbf24" }}>{roomCodeRef.current}</strong>
-        <button onClick={() => shareJoinLink(roomCodeRef.current)} style={{
-          border: "none", borderRadius: 7, padding: "4px 7px",
-          background: "rgba(37,99,235,0.8)", color: "#fff",
-          fontSize: 10, fontWeight: 800, cursor: "pointer",
-        }}>Share</button>
-        <button onClick={() => setUi(u => { const next = !u.soundOn; localStorage.setItem("shiv9_sound", next ? "on" : "off"); return { ...u, soundOn: next }; })} style={{
-          border: "none", borderRadius: 7, padding: "4px 7px",
-          background: "rgba(255,255,255,0.12)", color: "#fff",
-          fontSize: 11, fontWeight: 800, cursor: "pointer",
-        }}>{ui.soundOn ? "🔊" : "🔇"}</button>
+        <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#f8d36f", fontSize: 22, flexShrink: 0 }}>☰</div>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.36)", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 14, padding: "8px 10px" }}>
+            <span style={{ fontSize: 10, opacity: 0.6, whiteSpace: "nowrap" }}>ROOM</span>
+            <strong style={{ fontSize: 16, letterSpacing: 3, color: "#f8d36f", overflow: "hidden", textOverflow: "ellipsis" }}>{roomCodeRef.current}</strong>
+            <button onClick={() => shareJoinLink(roomCodeRef.current)} style={{
+              marginLeft: "auto", border: "none", borderRadius: 10, padding: "7px 10px",
+              background: "linear-gradient(180deg,#2563eb,#1d4ed8)", color: "#fff",
+              fontSize: 12, fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 10px rgba(37,99,235,0.28)",
+            }}>Share</button>
+          </div>
+          <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} headerMode />
+          <button onClick={() => setUi(u => { const next = !u.soundOn; localStorage.setItem("shiv9_sound", next ? "on" : "off"); return { ...u, soundOn: next }; })} style={{
+            width: 42, height: 38, border: "1px solid rgba(212,175,55,0.45)", borderRadius: 14,
+            background: "rgba(15,23,42,0.92)", color: "#fff", fontSize: 17, fontWeight: 900, cursor: "pointer", flexShrink: 0,
+          }}>{ui.soundOn ? "🔊" : "🔇"}</button>
+          <button onClick={handleEnd} style={{
+            width: 42, height: 38, border: "1px solid rgba(212,175,55,0.45)", borderRadius: 14,
+            background: "rgba(92,45,45,0.92)", color: "#fff", fontSize: 17, fontWeight: 900, cursor: "pointer", flexShrink: 0,
+          }}>🚪</button>
+        </div>
       </div>
       <GameScreen game={viewGame} setGame={setGameProxy} series={series_} onEnd={handleEnd} onAction={act} />
-      <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} />
     </>
   );
 }
@@ -2731,7 +2748,6 @@ export default function App() {
           onEnd={() => setMode("home")}
           onRoundEnd={handleOnlineRoundEnd}
         />
-        <Watermark />
       </>
     );
   }
