@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.3.1";
+const APP_VERSION = "v1.3.2";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -1522,7 +1522,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
   }, [game.winner]);
 
   return (
-    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(72px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
+    <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: "calc(96px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))", boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
@@ -1573,7 +1573,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       )}
 
       {/* Table */}
-      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.34))", borderRadius: 14, padding: "12px 14px", marginBottom: 10, minHeight: 92, maxHeight: "34dvh", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom", border: "1px solid rgba(212,175,55,0.34)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.025),0 8px 24px rgba(0,0,0,0.22)" }}>
+      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.34))", borderRadius: 14, padding: "12px 14px", marginBottom: 10, minHeight: 92, border: "1px solid rgba(212,175,55,0.34)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.025),0 8px 24px rgba(0,0,0,0.22)" }}>
         <div style={{ fontSize: 10, letterSpacing: 2, opacity: 0.35, marginBottom: 6 }}>TABLE</div>
         {tableSets.length === 0 ? (
           <div style={{ opacity: 0.22, fontSize: 12, fontStyle: "italic" }}>No sets on the table yet...</div>
@@ -2556,26 +2556,31 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
         backdropFilter: "blur(10px)",
         boxSizing: "border-box",
       }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#f8d36f", fontSize: 22, flexShrink: 0 }}>☰</div>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.36)", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 14, padding: "8px 10px" }}>
-            <span style={{ fontSize: 10, opacity: 0.6, whiteSpace: "nowrap" }}>ROOM</span>
-            <strong style={{ fontSize: 16, letterSpacing: 3, color: "#f8d36f", overflow: "hidden", textOverflow: "ellipsis" }}>{roomCodeRef.current}</strong>
+        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+          {/* Row 1: Room code + Share */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.36)", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 10, padding: "6px 10px" }}>
+              <span style={{ fontSize: 9, opacity: 0.5 }}>ROOM</span>
+              <strong style={{ fontSize: 15, letterSpacing: 3, color: "#f8d36f" }}>{roomCodeRef.current}</strong>
+            </div>
             <button onClick={() => shareJoinLink(roomCodeRef.current)} style={{
-              marginLeft: "auto", border: "none", borderRadius: 10, padding: "7px 10px",
+              border: "none", borderRadius: 10, padding: "8px 14px",
               background: "linear-gradient(180deg,#2563eb,#1d4ed8)", color: "#fff",
-              fontSize: 12, fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 10px rgba(37,99,235,0.28)",
-            }}>Share</button>
+              fontSize: 12, fontWeight: 900, cursor: "pointer", boxShadow: "0 4px 10px rgba(37,99,235,0.28)", flexShrink: 0,
+            }}>🔗 Share</button>
           </div>
-          <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} headerMode />
-          <button onClick={() => setUi(u => { const next = !u.soundOn; localStorage.setItem("shiv9_sound", next ? "on" : "off"); return { ...u, soundOn: next }; })} style={{
-            width: 42, height: 38, border: "1px solid rgba(212,175,55,0.45)", borderRadius: 14,
-            background: "rgba(15,23,42,0.92)", color: "#fff", fontSize: 17, fontWeight: 900, cursor: "pointer", flexShrink: 0,
-          }}>{ui.soundOn ? "🔊" : "🔇"}</button>
-          <button onClick={handleEnd} style={{
-            width: 42, height: 38, border: "1px solid rgba(212,175,55,0.45)", borderRadius: 14,
-            background: "rgba(92,45,45,0.92)", color: "#fff", fontSize: 17, fontWeight: 900, cursor: "pointer", flexShrink: 0,
-          }}>🚪</button>
+          {/* Row 2: Chat, Audio, End */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ChatChat socket={socket} roomCode={roomCodeRef.current} playerName={viewGame?.players?.[0]?.name || "You"} headerMode />
+            <button onClick={() => setUi(u => { const next = !u.soundOn; localStorage.setItem("shiv9_sound", next ? "on" : "off"); return { ...u, soundOn: next }; })} style={{
+              height: 34, padding: "0 12px", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 10,
+              background: "rgba(15,23,42,0.92)", color: "#fff", fontSize: 15, cursor: "pointer", flexShrink: 0,
+            }}>{ui.soundOn ? "🔊" : "🔇"}</button>
+            <button onClick={handleEnd} style={{
+              height: 34, padding: "0 12px", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 10,
+              background: "rgba(92,45,45,0.92)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", flexShrink: 0,
+            }}>End 🚪</button>
+          </div>
         </div>
       </div>
       <GameScreen game={viewGame} setGame={setGameProxy} series={series_} onEnd={handleEnd} onAction={act} />
