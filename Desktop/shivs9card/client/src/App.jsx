@@ -1533,7 +1533,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
     <div style={{ height: "100dvh", background: "radial-gradient(ellipse at 50% 0%,#1f1b13 0%,#111219 32%,#07080d 100%)", display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", color: "#fff", padding: `calc(${topPad}px + env(safe-area-inset-top)) 10px calc(34px + env(safe-area-inset-bottom))`, boxSizing: "border-box", maxWidth: 860, margin: "0 auto", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", touchAction: "pan-y pinch-zoom" }}>
 
       {/* Game title + scoreboard */}
-      <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
+      <div style={{ padding: "2px 2px 8px", marginBottom: 6, flexShrink: 0 }}>
         {!isOnlineGame && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: 1.4, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.55)", flex: 1 }}>🃏 Shivaan's 9 Card</div>
@@ -1588,7 +1588,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       )}
 
       {/* Table */}
-      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.34))", borderRadius: 14, padding: "12px 14px", marginBottom: 10, minHeight: 92, border: "1px solid rgba(212,175,55,0.34)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.025),0 8px 24px rgba(0,0,0,0.22)" }}>
+      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.34))", borderRadius: 14, padding: "12px 14px", marginBottom: 10, minHeight: 92, flexShrink: 0, border: "1px solid rgba(212,175,55,0.34)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.025),0 8px 24px rgba(0,0,0,0.22)" }}>
         <div style={{ fontSize: 10, letterSpacing: 2, opacity: 0.35, marginBottom: 6 }}>TABLE</div>
         {tableSets.length === 0 ? (
           <div style={{ opacity: 0.22, fontSize: 12, fontStyle: "italic" }}>No sets on the table yet...</div>
@@ -1634,7 +1634,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       </div>
 
       {/* Deck / Discard / Flipped */}
-      <div style={{ display: "flex", gap: 18, justifyContent: "center", alignItems: "flex-end", marginBottom: 4 }}>
+      <div style={{ display: "flex", gap: 18, justifyContent: "center", alignItems: "flex-end", marginBottom: 4, flexShrink: 0 }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 9, opacity: 0.4, marginBottom: 3 }}>DECK ({deck.length})</div>
           <div onClick={drawFromDeck} style={{ opacity: isMyTurn && phase === "draw" && deck.length ? 1 : 0.5, cursor: isMyTurn && phase === "draw" && deck.length ? "pointer" : "default" }}>
@@ -1664,7 +1664,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       </div>
 
       {/* Hand */}
-      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.36))", borderRadius: 16, padding: "12px 10px 14px", marginBottom: 10, border: isMyTurn ? `1.5px solid rgba(212,175,55,${pulse ? 0.82 : 0.42})` : "1px solid rgba(212,175,55,0.14)", boxShadow: isMyTurn && pulse ? "0 0 18px rgba(212,175,55,0.22)" : "0 10px 22px rgba(0,0,0,0.18)", transition: "border-color 0.4s, box-shadow 0.4s", touchAction: "pan-y pinch-zoom" }}>
+      <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035),rgba(0,0,0,0.36))", borderRadius: 16, padding: "12px 10px 14px", marginBottom: 10, flexShrink: 0, border: isMyTurn ? `1.5px solid rgba(212,175,55,${pulse ? 0.82 : 0.42})` : "1px solid rgba(212,175,55,0.14)", boxShadow: isMyTurn && pulse ? "0 0 18px rgba(212,175,55,0.22)" : "0 10px 22px rgba(0,0,0,0.18)", transition: "border-color 0.4s, box-shadow 0.4s", touchAction: "pan-y pinch-zoom" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 11, opacity: 0.5, letterSpacing: 1, display: "flex", gap: 8, alignItems: "center" }}>
             {human.name}'s HAND ({human.hand.length})
