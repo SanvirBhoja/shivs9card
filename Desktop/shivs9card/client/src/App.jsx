@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.3.2";
+const APP_VERSION = "v1.4.0";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -283,7 +283,7 @@ function applySeries(series, winnerId, gamePlayers, wildWin = false) {
       if (consec >= 3) { bonus = -50; consec = 0; }
       return {
         ...sp, total: sp.total + 30 + bonus, wins: sp.wins + 1, consec,
-        lastPts: 30, lastItems: [{ label: "Won with Joker/Wild", pts: 30 }],
+        lastPts: 30, lastItems: [{ label: "Won with Joker", pts: 30 }],
         lastBonus: bonus, lastNoSet: false, lastWildWin: true, lastHand: gp?.hand || [],
       };
     }
@@ -319,7 +319,7 @@ function applySeriesFromServer(series, winnerId, gamePlayers, wildWin = false) {
       wins: sp.wins + (won ? 1 : 0),
       consec,
       lastPts: pts,
-      lastItems: gp?._serverItems?.length ? gp._serverItems : (won && wildWin ? [{ label: "Won with Joker/Wild", pts: 30 }] : []),
+      lastItems: gp?._serverItems?.length ? gp._serverItems : (won && wildWin ? [{ label: "Won with Joker", pts: 30 }] : []),
       lastBonus: bonus,
       lastNoSet: gp?._serverNoSet || false,
       lastWildWin: won && wildWin,
@@ -379,12 +379,15 @@ function findAddToSet(hand, tableSets) {
   return null;
 }
 
-function pickDiscard(hand) {
-  const nw = hand.filter(c => !c.isWild);
-  if (!nw.length) return hand[0];
-  return nw.reduce((worst, c) => {
-    const cs = nw.filter(x => x.suit === c.suit && Math.abs(rv(x.rank) - rv(c.rank)) <= 3).length;
-    const ws = nw.filter(x => x.suit === worst.suit && Math.abs(rv(x.rank) - rv(worst.rank)) <= 3).length;
+function pickDiscard(hand, excludeId = null) {
+  const candidates = hand.filter(c => !c.isWild && c.id !== excludeId);
+  if (!candidates.length) {
+    const fallback = hand.filter(c => c.id !== excludeId);
+    return fallback.length ? fallback[0] : hand[0];
+  }
+  return candidates.reduce((worst, c) => {
+    const cs = candidates.filter(x => x.suit === c.suit && Math.abs(rv(x.rank) - rv(c.rank)) <= 3).length;
+    const ws = candidates.filter(x => x.suit === worst.suit && Math.abs(rv(x.rank) - rv(worst.rank)) <= 3).length;
     return cs < ws ? c : worst;
   });
 }
@@ -404,12 +407,17 @@ function runAiTurn(game) {
     const testHand = [...p.hand, topDisc];
     return !!(findBestMeld(testHand, p.hasComDown ? 3 : 4) || findAddToSet([topDisc], tableSets));
   })();
+  let drewFromDiscard = null; // only set for discard draws — can't throw back what you chose to pick up
   if (shouldPickupDiscard) {
-    p.hand.push(discardPile.pop());
+    const drew = discardPile.pop();
+    p.hand.push(drew);
+    drewFromDiscard = drew.id;
   } else if (deck.length) {
-    p.hand.push(deck.pop());
+    p.hand.push(deck.pop()); // random draw — no restriction on discarding it
   } else if (discardPile.length) {
-    p.hand.push(discardPile.pop());
+    const drew = discardPile.pop();
+    p.hand.push(drew);
+    drewFromDiscard = drew.id;
   } else {
     // Both empty — reshuffle table sets back into deck
     const reshuffled = reshuffleTableSets(deck, discardPile, tableSets, game.wildRank);
@@ -481,8 +489,8 @@ function runAiTurn(game) {
     }
   }
 
-  // Discard — detect wild win if last card
-  const dc = pickDiscard(p.hand);
+  // Discard — can't throw back a card picked up from the discard pile (standard rule)
+  const dc = pickDiscard(p.hand, drewFromDiscard);
   p.hand = p.hand.filter(c => c.id !== dc.id);
   discardPile.push(dc);
   if (!p.hand.length) return { ...game, players, discardPile, tableSets, winner: p.id, wildWin: dc.isWild };
@@ -508,7 +516,7 @@ function runAiTurn(game) {
 }
 
 // ─── Game Init ───────────────────────────────────────────────
-function initGame(n, names = []) {
+function initGame(n, names = [], usedWilds = []) {
   let deck = shuffle(makeDeck());
   const players = Array.from({ length: n }, (_, i) => ({
     id: i,
@@ -520,11 +528,21 @@ function initGame(n, names = []) {
   for (let c = 0; c < 9; c++) for (const p of players) p.hand.push(deck.pop());
   let flipped = deck.pop();
   while (flipped.rank === "JOKER") { deck.unshift(flipped); flipped = deck.pop(); }
-  const wildRank = nextRank(flipped.rank);
+  let wildRank = nextRank(flipped.rank);
+  // Avoid repeating wild ranks from previous rounds (if possible)
+  let attempts = 0;
+  while (usedWilds.includes(wildRank) && attempts < 26) {
+    deck.push(flipped);
+    deck = shuffle(deck);
+    flipped = deck.pop();
+    while (flipped.rank === "JOKER") { deck.unshift(flipped); flipped = deck.pop(); }
+    wildRank = nextRank(flipped.rank);
+    attempts++;
+  }
   deck = markWilds(deck, wildRank);
   for (const p of players) p.hand = markWilds(p.hand, wildRank);
   return {
-    deck, discardPile: [], flipped, wildRank, players,
+    deck, discardPile: [], flipped, wildRank, usedWilds: [...usedWilds, wildRank], players,
     currentPlayer: 0, tableSets: [], phase: "draw",
     selectedIds: [], addMode: false, placementIdx: null, wildConfirmed: false,
     message: "🎮 Your turn! Pick Up a card to begin.", winner: null,
@@ -667,7 +685,7 @@ function PlacementPanel({ meld, selCard, onPlace, onCancel }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Btn onClick={onCancel} small>✕ Cancel</Btn>
         {ordered.some(s => s.isWild && validMeld(meld.cards.filter(c => c.id !== s.card.id).concat([selCard]))) && (
-          <span style={{ fontSize: 10, opacity: 0.45 }}>Swapping a wild returns it to your hand</span>
+          <span style={{ fontSize: 10, opacity: 0.45 }}>Swapping a joker returns it to your hand</span>
         )}
       </div>
     </div>
@@ -1062,7 +1080,7 @@ function SetupScreen({ onStart, onBack }) {
             🃏 9 cards each · flipped card reveals Joker rank (+2 Jokers = 6 total)<br />
             🎯 <strong>Come down</strong> first with 4+ consecutive same-suit cards<br />
             ➕ Then add to any table set or play 3+ card runs<br />
-            🔄 <strong>Drag</strong> to reorder hand · <strong>Swap</strong> a wild with its real card<br />
+            🔄 <strong>Drag</strong> to reorder hand · <strong>Swap</strong> a joker with its real card<br />
             👑 Ace = 1 or after King · 🏆 Lowest cumulative score wins!
           </div>
           {onBack && (
@@ -1187,7 +1205,7 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
               <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.closest}</div>
             </div>}
             {series.roundStats.heaviest && <div style={{ flex: 1, minWidth: 100, background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>😬</div>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>💀</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 2 }}>MOST POINTS</div>
               <div style={{ fontSize: 13, fontWeight: 700 }}>{series.roundStats.heaviest}</div>
             </div>}
@@ -1459,7 +1477,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
       if (wildBack) ps[0].hand.push({ ...wildBack, isWild: true });
       const ts = g.tableSets.map((s, i) => i === idx ? { ...s, cards: nc } : s);
       if (!ps[0].hand.length) return { ...g, players: ps, tableSets: ts, winner: 0, wildWin: sc.isWild || (wildBack !== null) };
-      return { ...g, players: ps, tableSets: ts, selectedIds: [], addMode: false, placementIdx: null, message: "✅ Card placed!" + (wildBack ? " (wild returned to hand)" : "") };
+      return { ...g, players: ps, tableSets: ts, selectedIds: [], addMode: false, placementIdx: null, message: "✅ Card placed!" + (wildBack ? " (joker returned to hand)" : "") };
     });
   }
 
@@ -2119,7 +2137,7 @@ function ModeSelect({ onOffline, onOnline, onRecentGames }) {
         <button onClick={onRecentGames} style={{ padding: "14px", borderRadius: 14, fontSize: 16, fontWeight: 800, background: "linear-gradient(135deg,#92400e,#b45309)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(180,83,9,0.4)" }}>
           🏆 Recent Games<br /><span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>Games you completed</span>
         </button>
-        <button onClick={() => alert("HOW TO PLAY\n\n• Pick up from the deck or throw pile.\n• First come-down must be 4+ cards, or two sets at once with 4+ and 3+.\n• Runs must be same suit and consecutive.\n• Jokers/wild cards follow the order you select them.\n• Donkey sets are same-number sets. Jokers can fill missing suits once all 4 suits are represented.\n• Throw one card to end your turn.\n• Lowest score wins the series.")} style={{ padding: "12px", borderRadius: 14, fontSize: 15, fontWeight: 800, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer" }}>
+        <button onClick={() => alert("HOW TO PLAY\n\n• Pick up from the deck or throw pile.\n• First come-down must be 4+ cards, or two sets at once with 4+ and 3+.\n• Runs must be same suit and consecutive.\n• Jokers fill gaps in your sequence.\n• Donkey sets are same-number sets. Jokers can fill missing suits once all 4 suits are represented.\n• Throw one card to end your turn.\n• Lowest score wins the series.")} style={{ padding: "12px", borderRadius: 14, fontSize: 15, fontWeight: 800, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer" }}>
           ❔ How to Play
         </button>
         <div style={{ textAlign: "center", opacity: 0.35, fontSize: 11, marginTop: 2 }}>{APP_VERSION}</div>
@@ -2357,6 +2375,19 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
 
     // Use named handlers so cleanup removes ONLY these, not all listeners
     function onGameState(state) {
+      // If server sent seriesData (rejoin), restore the accumulated series
+      if (state.seriesData && state.seriesData.players) {
+        setSeries_({
+          roomCode: roomCodeRef.current,
+          round: state.seriesData.round || 0,
+          players: state.seriesData.players.map(sp => ({
+            id: sp.id, name: sp.name, total: sp.total || 0,
+            wins: sp.wins || 0, consec: sp.streak || 0,
+            lastPts: 0, lastItems: [], lastNoSet: false, lastWildWin: false, lastHand: [],
+          })),
+          lastWin: null,
+        });
+      }
       const myI = state.myPlayerIdx ?? 0;
       setServerGame(prev => {
         if (prev && prev.currentPlayer !== myI &&
@@ -2657,7 +2688,7 @@ function OfflineApp({ onBack }) {
 
   function nextRound() {
     const names = series.players.map(p => p.name);
-    const g = initGame(series.n, names);
+    const g = initGame(series.n, names, game?.usedWilds || []);
     setGame(g);
     setScreen("dealing"); // Deal animation before each round
   }

@@ -22,7 +22,7 @@ app.get('/api/recent-games', (req, res) => {
   res.json(games.slice(0,5));
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.3.0' }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, uptime: Math.floor(process.uptime()), version: '1.3.1' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -118,7 +118,7 @@ function findBestMeld(hand,min){
   return best;
 }
 function findAddToSet(hand,sets){for(const c of hand)for(let i=0;i<sets.length;i++)if(canAdd(sets[i].cards,c))return{card:c,idx:i};return null;}
-function pickDiscard(hand){const nw=hand.filter(c=>!c.isWild);if(!nw.length)return hand[0];return nw.reduce((w,c)=>{const cs=nw.filter(x=>x.suit===c.suit&&Math.abs(rv(x.rank)-rv(c.rank))<=3).length,ws=nw.filter(x=>x.suit===w.suit&&Math.abs(rv(x.rank)-rv(w.rank))<=3).length;return cs<ws?c:w;});}
+function pickDiscard(hand,excludeId=null){const nw=hand.filter(c=>!c.isWild&&c.id!==excludeId);if(!nw.length){const fb=hand.filter(c=>c.id!==excludeId);return fb.length?fb[0]:hand[0];}return nw.reduce((w,c)=>{const cs=nw.filter(x=>x.suit===c.suit&&Math.abs(rv(x.rank)-rv(c.rank))<=3).length,ws=nw.filter(x=>x.suit===w.suit&&Math.abs(rv(x.rank)-rv(w.rank))<=3).length;return cs<ws?c:w;});}
 function findTwoMelds(cards){if(cards.length<7)return null;const f=findBestMeld(cards,4);if(!f)return null;const ids=new Set(f.map(c=>c.id));const s=findBestMeld(cards.filter(c=>!ids.has(c.id)),3);return s?[f,s]:null;}
 
 function reshuffleTableSets(deck,disc,sets,wr){
@@ -128,15 +128,16 @@ function reshuffleTableSets(deck,disc,sets,wr){
   return{deck:markWilds(shuffle(rec),wr),disc:[],sets:[]};
 }
 
-function initGame(playerList, startPlayer=0){
+function initGame(playerList, startPlayer=0, usedWilds=[]){
   _uid=0;
   let deck=shuffle(makeDeck());
   const players=playerList.map((p,i)=>({...p,id:i,hand:[],hasComDown:false}));
   for(let c=0;c<9;c++)for(const p of players)p.hand.push(deck.pop());
   let fl=deck.pop();while(fl.rank==='JOKER'){deck.unshift(fl);fl=deck.pop();}
-  const wr=nextRank(fl.rank);
+  let wr=nextRank(fl.rank);
+  let att=0;while(usedWilds.includes(wr)&&att<26){deck.push(fl);deck=shuffle(deck);fl=deck.pop();while(fl.rank==='JOKER'){deck.unshift(fl);fl=deck.pop();}wr=nextRank(fl.rank);att++;}
   deck=markWilds(deck,wr);for(const p of players)p.hand=markWilds(p.hand,wr);
-  return{deck,discardPile:[],flipped:fl,wildRank:wr,players,currentPlayer:startPlayer,tableSets:[],
+  return{deck,discardPile:[],flipped:fl,wildRank:wr,usedWilds:[...usedWilds,wr],players,currentPlayer:startPlayer,tableSets:[],
     phase:'draw',winner:null,wildWin:false,wildConfirmed:false,moveHistory:[]};
 }
 
@@ -148,9 +149,10 @@ function runAiTurn(game){
 
   const top=disc[disc.length-1];
   const pickup=top&&!top.isWild&&(()=>{const h=[...p.hand,top];return!!(findBestMeld(h,p.hasComDown?3:4)||findAddToSet([top],sets));})();
-  if(pickup)p.hand.push(disc.pop());
-  else if(deck.length)p.hand.push(deck.pop());
-  else if(disc.length)p.hand.push(disc.pop());
+  let drewFromDiscard=null;
+  if(pickup){const d=disc.pop();p.hand.push(d);drewFromDiscard=d.id;}
+  else if(deck.length){p.hand.push(deck.pop());}
+  else if(disc.length){const d=disc.pop();p.hand.push(d);drewFromDiscard=d.id;}
   else{const r=reshuffleTableSets(deck,disc,sets,game.wildRank);deck=r.deck;disc=r.disc;sets=r.sets;if(deck.length)p.hand.push(deck.pop());}
 
   if(!p.hasComDown){
@@ -166,7 +168,7 @@ function runAiTurn(game){
       const m=findBestMeld(p.hand,3);if(m){const es=suitsOnTable(sets);const ok=isDonutSet(m)?es.size>=4:(!getRunSuit(m)||!es.has(getRunSuit(m)));if(ok){const ids=new Set(m.map(c=>c.id));p.hand=p.hand.filter(c=>!ids.has(c.id));sets.push({playerId:p.id,playerName:p.name,cards:m});if(!p.hand.length)return{...game,players,tableSets:sets,winner:p.id,wildWin:m.some(c=>c.isWild)};ch=true;}}
     }
   }
-  const dc=pickDiscard(p.hand);p.hand=p.hand.filter(c=>c.id!==dc.id);disc.push(dc);
+  const dc=pickDiscard(p.hand,drewFromDiscard);p.hand=p.hand.filter(c=>c.id!==dc.id);disc.push(dc);
   if(!p.hand.length)return{...game,players,discardPile:disc,tableSets:sets,winner:p.id,wildWin:dc.isWild};
   if(!deck.length&&disc.length>1){const top=disc.pop();deck=shuffle([...disc]);disc=[top];}
   else if(!deck.length&&!disc.length){const r=reshuffleTableSets(deck,disc,sets,game.wildRank);deck=r.deck;disc=r.disc;sets=r.sets;}
@@ -235,6 +237,19 @@ function broadcastGame(roomCode, game){
         io.to(rp.socketId).emit('round_end', { winner: game.winner, scores, wildWin: game.wildWin||false });
       }
     });
+    // Accumulate series data server-side (for rejoin)
+    if (room.seriesData) {
+      room.seriesData.round++;
+      const winnerId = game.winner;
+      const isWildWin = !!game.wildWin;
+      scores.forEach(s => {
+        let sp = room.seriesData.players.find(p => p.id === s.id);
+        if (!sp) { sp = { id: s.id, name: s.name, total: 0, wins: 0, streak: 0 }; room.seriesData.players.push(sp); }
+        sp.total += s.total;
+        if (s.id === winnerId && !isWildWin) { sp.wins++; sp.streak++; } else { sp.streak = 0; }
+      });
+      room.lastWinner = winnerId;
+    }
   } else {
     room.players.forEach((rp, idx) => {
       if(rp.socketId) io.to(rp.socketId).emit('game_state', playerView(game, idx));
@@ -300,7 +315,7 @@ io.on('connection', socket => {
       });
 
       io.to(roomCode).emit('room_updated', sanitiseRoom(room));
-      socket.emit('game_state', playerView(room.game, existingIdx));
+      socket.emit('game_state', { ...playerView(room.game, existingIdx), seriesData: room.seriesData || null });
       socket.emit('action_error', 'Rejoined game successfully.');
       io.to(roomCode).emit('system_message', { text: `✅ ${room.players[existingIdx].name} rejoined the game`, ts: Date.now() });
       return;
@@ -329,6 +344,7 @@ io.on('connection', socket => {
     if(room.players.length < 2){ socket.emit('error', 'Need at least 2 players'); return; }
     room.game = initGame(room.players.map(p => ({ name: p.name })), 0);
     room.lastWinner = null;
+    room.seriesData = { players: room.players.map((p, i) => ({ id: i, name: p.name, total: 0, wins: 0, streak: 0 })), round: 0 };
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name) });
     setTimeout(() => broadcastGame(code, room.game), 4000);
   });
@@ -340,7 +356,7 @@ io.on('connection', socket => {
     const rp = room.players.find(p => p.socketId === socket.id);
     if(!rp) return;
     const startPlayer = room.lastWinner ?? 0;
-    room.game = initGame(room.players.map(p => ({ name: p.name })), startPlayer);
+    room.game = initGame(room.players.map(p => ({ name: p.name })), startPlayer, room.game?.usedWilds || []);
     io.to(code).emit('deal_start', { playerNames: room.players.map(p => p.name), startPlayer });
     setTimeout(() => broadcastGame(code, room.game), 4000);
   });
@@ -600,7 +616,7 @@ io.on('connection', socket => {
     socket.emit('room_joined', { code: roomCode, room: sanitiseRoom(room), isHost: room.players[idx].isHost, rejoined: true, playerToken: room.players[idx].token, playerName: room.players[idx].name });
     io.to(roomCode).emit('player_reconnected', { name: room.players[idx].name });
     io.to(roomCode).emit('room_updated', { room: sanitiseRoom(room) });
-    socket.emit('game_state', playerView(room.game, idx));
+    socket.emit('game_state', { ...playerView(room.game, idx), seriesData: room.seriesData || null });
     socket.emit('action_error', 'Rejoined game successfully.');
     io.to(roomCode).emit('system_message', { text: `✅ ${room.players[idx].name} rejoined the game`, ts: Date.now() });
   });
@@ -613,7 +629,7 @@ io.on('connection', socket => {
     if (!room || !room.game) return;
     const idx = room.players.findIndex(p => p.socketId === socket.id);
     if (idx === -1) return;
-    socket.emit('game_state', playerView(room.game, idx));
+    socket.emit('game_state', { ...playerView(room.game, idx), seriesData: room.seriesData || null });
   });
 
   socket.on('player_exit', ({ code }) => {
