@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const APP_VERSION = "v1.4.0";
+const APP_VERSION = "v1.5.0";
 const ONLINE_BASE_URL = "https://shivs9card-production.up.railway.app";
 const API_BASE_URL = (typeof window !== "undefined" && (window.location.protocol === "capacitor:" || window.location.hostname === "localhost")) ? ONLINE_BASE_URL : "";
 
@@ -559,7 +559,7 @@ function CardView({ card, selected, selectedOrder, faceDown, small, onClick, dra
   return (
     <div onClick={onClick} style={{
       position: "relative", width: W, height: H, flexShrink: 0,
-      background: faceDown ? "url(/shivaan.png) center/cover no-repeat, #1b6b3a" : "#fffef2",
+      background: faceDown ? "url(/shivaan.png) center/cover no-repeat, #1a1510" : "#fffef2",
       borderRadius: 5,
       border: selected ? "2.5px solid #fbbf24" : dragging ? "2.5px solid #60a5fa" : faceDown ? "1.5px solid #c8b87a" : "1.5px solid #c8b87a",
       cursor: onClick ? "pointer" : "default", userSelect: "none", overflow: "hidden",
@@ -774,7 +774,7 @@ function usePulse(active) {
 
 // ─── Deal Animation Screen ────────────────────────────────────
 const CARD_THEMES = {
-  shivaan: "url(/shivaan.png) center/cover no-repeat, #1b6b3a",
+  shivaan: "url(/shivaan.png) center/cover no-repeat, #1a1510",
   classic: "repeating-linear-gradient(45deg,#1a3a8f 0,#1a3a8f 4px,#c41230 4px,#c41230 8px)",
   gold: "radial-gradient(ellipse at 30% 30%,#f59e0b 0%,#92400e 100%)",
 };
@@ -840,7 +840,7 @@ function DealScreen({ game, onDone }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 999,
-      background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#0a3a1c 100%)",
+      background: "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)",
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       color: "#fff", fontFamily: "Georgia,serif",
     }}>
@@ -1011,10 +1011,10 @@ function DealScreen({ game, onDone }) {
         borderRadius: cardFlipped ? 12 : 8,
         fontSize: cardFlipped ? 16 : 12,
         fontWeight: cardFlipped ? 800 : 400,
-        background: cardFlipped ? "#16a34a" : "rgba(255,255,255,0.08)",
+        background: cardFlipped ? "#b8860b" : "rgba(255,255,255,0.08)",
         color: cardFlipped ? "#fff" : "rgba(255,255,255,0.4)",
         border: cardFlipped ? "none" : "1px solid rgba(255,255,255,0.12)",
-        boxShadow: cardFlipped ? "0 4px 16px rgba(22,163,74,0.45)" : "none",
+        boxShadow: cardFlipped ? "0 4px 16px rgba(184,134,11,0.45)" : "none",
         cursor: "pointer", transition: "all 0.25s ease",
       }}>
         {cardFlipped ? "Next ▶" : "Skip ▶"}
@@ -1057,7 +1057,7 @@ function SetupScreen({ onStart, onBack }) {
   };
 
   return (
-    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 480, marginBottom: 28 }}>
         <GameLogo />
       </div>
@@ -1108,7 +1108,7 @@ function SetupScreen({ onStart, onBack }) {
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep(1)} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer" }}>← Back</button>
-            <button onClick={go} style={{ flex: 2, padding: "12px", borderRadius: 10, fontSize: 16, fontWeight: 800, background: "#16a34a", color: "#fff", border: "none", cursor: "pointer" }}>Start Game ▶</button>
+            <button onClick={go} style={{ flex: 2, padding: "12px", borderRadius: 10, fontSize: 16, fontWeight: 800, background: "#b8860b", color: "#fff", border: "none", cursor: "pointer" }}>Start Game ▶</button>
           </div>
         </div>
       )}
@@ -1124,7 +1124,7 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
   const stars = n => "⭐".repeat(Math.min(n, 8));
 
   return (
-    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto" }}>
       <div style={{ fontSize: 48, marginBottom: 6 }}>🏆</div>
       <h2 style={{ fontSize: 26, margin: "0 0 4px", fontWeight: 900 }}>Round {series.round} Complete!</h2>
       <p style={{ opacity: 0.6, marginBottom: 24, fontSize: 14 }}>{winner ? winner.name : "?"} won this round!</p>
@@ -1214,7 +1214,7 @@ function RoundOverScreen({ series, onNext, onEnd, onRematch }) {
       )}
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-        <button onClick={onNext} style={{ padding: "13px 36px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#16a34a", color: "#fff", border: "none", cursor: "pointer" }}>▶ Next Round</button>
+        <button onClick={onNext} style={{ padding: "13px 36px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#b8860b", color: "#fff", border: "none", cursor: "pointer" }}>▶ Next Round</button>
         {onRematch && <button onClick={onRematch} style={{ padding: "13px 36px", borderRadius: 12, fontSize: 15, fontWeight: 700, background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer" }}>🔄 Rematch</button>}
         <button onClick={onEnd} style={{ padding: "13px 36px", borderRadius: 12, fontSize: 16, fontWeight: 700, background: "rgba(255,255,255,0.1)", color: "#fff", border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer" }}>🏁 End Game</button>
       </div>
@@ -1227,7 +1227,7 @@ function GameOverScreen({ series, onNew, onRematch, onRecentGames }) {
   const sorted = [...series.players].sort((a, b) => a.total - b.total);
   const medals = ["🥇", "🥈", "🥉", "4️⃣"];
   return (
-    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 20%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto", boxSizing: "border-box" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: "24px 16px", overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ fontSize: 64, marginBottom: 10 }}>🏆</div>
       <h1 style={{ fontSize: 38, margin: "0 0 4px", fontWeight: 900 }}>Game Over!</h1>
       <p style={{ opacity: 0.4, marginBottom: 4, fontSize: 12, letterSpacing: 2 }}>SHIV'S 9 CARD</p>
@@ -1718,8 +1718,8 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
           <div style={{ position: "relative", background: "rgba(8,10,16,0.96)", border: "1px solid rgba(212,175,55,0.32)", borderRadius: 14, padding: "10px 8px", margin: "8px 0 0", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", zIndex: 5, maxWidth: "100%", boxShadow: "0 8px 20px rgba(0,0,0,0.28)" }}>
             {phase === "draw" && (
               <React.Fragment>
-                <Btn onClick={drawFromDeck} bg="#16a34a">🎴 Pick Up</Btn>
-                <Btn onClick={drawFromDiscard} disabled={!topDiscard} bg="#2563eb">↩ Pick Up Throw</Btn>
+                <Btn onClick={drawFromDeck} bg="#b8860b">🎴 Pick Up</Btn>
+                <Btn onClick={drawFromDiscard} disabled={!topDiscard} bg="#c67c00">↩ Pick Up Throw</Btn>
               </React.Fragment>
             )}
             {phase === "play" && (
@@ -1867,7 +1867,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
   }, []);
 
   const inp = { width: "100%", padding: "11px 14px", borderRadius: 9, fontSize: 15, fontWeight: 600, background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#fff", outline: "none", boxSizing: "border-box" };
-  const BG = "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)";
+  const BG = "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)";
 
   if (view === "menu") {
     const savedCode = sessionStorage.getItem("shiv9_room") || localStorage.getItem("shiv9_room");
@@ -1879,8 +1879,8 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
       <h1 style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3, marginBottom: 4, textAlign: "center" }}>Shivaan's 9 Card</h1>
       <p style={{ opacity: 0.45, marginBottom: 40, fontSize: 13, letterSpacing: 2 }}>ONLINE MULTIPLAYER</p>
       <div style={{ width: "100%", maxWidth: 340, display: "flex", flexDirection: "column", gap: 14 }}>
-        <button onClick={() => setView("create")} style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#16a34a", color: "#fff", border: "none", cursor: "pointer" }}>🏠 Create a Game</button>
-        <button onClick={() => setView("join")}   style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>🔗 Join with Code</button>
+        <button onClick={() => setView("create")} style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#b8860b", color: "#fff", border: "none", cursor: "pointer" }}>🏠 Create a Game</button>
+        <button onClick={() => setView("join")}   style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#b8860b", color: "#fff", border: "none", cursor: "pointer" }}>🔗 Join with Code</button>
         {savedCode && savedName && (
           <button onClick={() => {
             roomCodeRef.current = savedCode;
@@ -1917,7 +1917,7 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
           setError("");
           if (view === "create") socket?.emit("create_room", { playerName: playerName.trim() });
           else { if (!joinCode) { setError("Enter a room code"); return; } socket?.emit("join_room", { code: joinCode, playerName: playerName.trim(), playerToken: localStorage.getItem("shiv9_token") || sessionStorage.getItem("shiv9_token") || "" }); }
-        }} style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: view === "create" ? "#16a34a" : "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>
+        }} style={{ padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: "#b8860b", color: "#fff", border: "none", cursor: "pointer" }}>
           {view === "create" ? "Create Room" : "Join Room"}
         </button>
         <button onClick={() => { setView("menu"); setError(""); }} style={{ padding: "10px", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "none", cursor: "pointer" }}>← Back</button>
@@ -1982,12 +1982,12 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
       {isHost ? (
         <button disabled={roomPlayers.length < 2 || !roomPlayers.filter(p => !p.isHost).every(p => p.ready)}
           onClick={() => socket?.emit("start_game", { code: roomCode })}
-          style={{ padding: "14px 48px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "#16a34a" : "rgba(255,255,255,0.1)", color: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "#fff" : "rgba(255,255,255,0.3)", border: "none", cursor: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "pointer" : "not-allowed" }}>
+          style={{ padding: "14px 48px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "#b8860b" : "rgba(255,255,255,0.1)", color: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "#fff" : "rgba(255,255,255,0.3)", border: "none", cursor: (roomPlayers.length >= 2 && roomPlayers.filter(p=>!p.isHost).every(p=>p.ready)) ? "pointer" : "not-allowed" }}>
           {roomPlayers.filter(p=>!p.isHost).every(p=>p.ready) ? `▶ Start Game (${roomPlayers.length} players)` : `Waiting for everyone… (${roomPlayers.filter(p=>p.ready).length}/${roomPlayers.length} ready)`}
         </button>
       ) : (
         <button onClick={() => socket?.emit("player_ready", { code: roomCode })}
-          style={{ padding: "14px 48px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: roomPlayers.find(p => p.socketId === socket?.id)?.ready ? "#16a34a" : "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>
+          style={{ padding: "14px 48px", borderRadius: 12, fontSize: 16, fontWeight: 800, background: roomPlayers.find(p => p.socketId === socket?.id)?.ready ? "#b8860b" : "rgba(255,255,255,0.15)", color: "#fff", border: "none", cursor: "pointer" }}>
           {roomPlayers.find(p => p.socketId === socket?.id)?.ready ? "✓ You're Ready!" : "✋ I'm Ready"}
         </button>
       )}
@@ -2002,41 +2002,16 @@ function OnlineLobby({ onBack, onJoinedRoom, onGameStart }) {
 // ─── Game Logo ───────────────────────────────────────────────
 function GameLogo() {
   return (
-    <svg width="100%" viewBox="0 0 680 230" style={{ maxWidth: 520, display: "block", margin: "0 auto" }}>
-      <rect x="0" y="0" width="680" height="230" rx="20" fill="#0f3d22"/>
-      {/* Stacked cards left */}
-      <rect x="28" y="55" width="72" height="100" rx="6" fill="#fffef2" stroke="#c8b87a" strokeWidth="1.5" transform="rotate(-15,64,105)"/>
-      <rect x="40" y="50" width="72" height="100" rx="6" fill="#fffef2" stroke="#c8b87a" strokeWidth="1.5" transform="rotate(-7,76,100)"/>
-      <rect x="52" y="46" width="72" height="100" rx="6" fill="#fffef2" stroke="#c8b87a" strokeWidth="2"/>
-      <text x="59" y="71" fontFamily="Georgia,serif" fontSize="17" fontWeight="bold" fill="#dc2626">9</text>
-      <text x="59" y="87" fontFamily="Georgia,serif" fontSize="13" fill="#dc2626">♥</text>
-      <text x="88" y="66" fontFamily="Georgia,serif" fontSize="24" fill="#dc2626" textAnchor="middle">♥</text>
-      {/* Shivaan card right */}
-      <rect x="500" y="18" width="150" height="200" rx="12" fill="#000" opacity="0.25" transform="translate(3,3)"/>
-      <rect x="500" y="18" width="150" height="200" rx="12" fill="#fffef2" stroke="#fbbf24" strokeWidth="2.5"/>
-      <image href="/shivaan.png" x="500" y="18" width="150" height="200" clipPath="url(#logoClip)" preserveAspectRatio="xMidYMid slice"/>
-      <defs><clipPath id="logoClip"><rect x="500" y="18" width="150" height="200" rx="12"/></clipPath></defs>
-      {/* Title */}
-      <text x="300" y="94" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="bold" fill="#fbbf24" letterSpacing="1">Shivaan's</text>
-      <text x="296" y="152" textAnchor="middle" fontFamily="Georgia,serif" fontSize="66" fontWeight="bold" fill="#ffffff" letterSpacing="-2">9 Card</text>
-      {/* Suits */}
-      <text x="214" y="182" textAnchor="middle" fontFamily="Georgia,serif" fontSize="15" fill="#dc2626">♥</text>
-      <text x="240" y="182" textAnchor="middle" fontFamily="Georgia,serif" fontSize="15" fill="#e5e7eb">♠</text>
-      <text x="266" y="182" textAnchor="middle" fontFamily="Georgia,serif" fontSize="15" fill="#dc2626">♦</text>
-      <text x="292" y="182" textAnchor="middle" fontFamily="Georgia,serif" fontSize="15" fill="#e5e7eb">♣</text>
-      <text x="318" y="182" textAnchor="middle" fontFamily="Georgia,serif" fontSize="14" fill="#a78bfa">🃏</text>
-      {/* Tagline */}
-      <text x="296" y="208" textAnchor="middle" fontFamily="Georgia,serif" fontSize="12" fill="#4ade80" letterSpacing="2">Built by his dad, just for him</text>
-      {/* Gold border */}
-      <rect x="1" y="1" width="678" height="228" rx="20" fill="none" stroke="#fbbf24" strokeWidth="1" opacity="0.3"/>
-    </svg>
+    <div style={{ textAlign: "center", margin: "0 auto", maxWidth: 320 }}>
+      <img src="/logo.png" alt="Shivaan's 9 Card" style={{ width: "100%", height: "auto", borderRadius: 16 }} />
+    </div>
   );
 }
 
 // ─── Recent Games Screen ──────────────────────────────────────
 function RecentGamesScreen({ onClose }) {
   const [games, setGames] = useState(null);
-  const BG = "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)";
+  const BG = "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)";
 
   useEffect(() => {
     Promise.all([
@@ -2123,15 +2098,15 @@ function RecentGamesScreen({ onClose }) {
 // ─── Mode Select ─────────────────────────────────────────────
 function ModeSelect({ onOffline, onOnline, onRecentGames }) {
   return (
-    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 30%,#1b6b3a 0%,#072515 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0e14 40%,#07080d 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif", padding: 24, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: 520, marginBottom: 32 }}>
         <GameLogo />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", maxWidth: 320 }}>
-        <button onClick={onOnline} style={{ padding: "16px", borderRadius: 14, fontSize: 17, fontWeight: 800, background: "linear-gradient(135deg,#1d4ed8,#2563eb)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(37,99,235,0.4)" }}>
+        <button onClick={onOnline} style={{ padding: "16px", borderRadius: 14, fontSize: 17, fontWeight: 800, background: "linear-gradient(135deg,#b8860b,#d4a336)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(184,134,11,0.4)" }}>
           🌐 Play Online<br /><span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>Multiplayer with friends</span>
         </button>
-        <button onClick={onOffline} style={{ padding: "16px", borderRadius: 14, fontSize: 17, fontWeight: 800, background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(22,163,74,0.4)" }}>
+        <button onClick={onOffline} style={{ padding: "16px", borderRadius: 14, fontSize: 17, fontWeight: 800, background: "linear-gradient(135deg,#8B6914,#a67c00)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(139,105,20,0.4)" }}>
           🤖 Play Offline<br /><span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>vs CPU opponents</span>
         </button>
         <button onClick={onRecentGames} style={{ padding: "14px", borderRadius: 14, fontSize: 16, fontWeight: 800, background: "linear-gradient(135deg,#92400e,#b45309)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 18px rgba(180,83,9,0.4)" }}>
@@ -2201,7 +2176,7 @@ function ChatChat({ socket, roomCode, playerName, headerMode = false }) {
         } : {
           position: "fixed", top: "calc(10px + env(safe-area-inset-top))", right: 10, zIndex: 9999,
           width: 50, height: 50, borderRadius: "50%",
-          background: open ? "#7c3aed" : "#1d4ed8",
+          background: open ? "#7c3aed" : "rgba(184,134,11,0.7)",
           border: "2px solid rgba(255,255,255,0.15)",
           color: "#fff", fontSize: 22, cursor: "pointer",
           boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
@@ -2463,7 +2438,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
   }
 
   if (!serverGame) return (
-    <div style={{ height: "100vh", background: "radial-gradient(#1b6b3a,#072515)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif" }}>
+    <div style={{ height: "100vh", background: "radial-gradient(#1a1510,#07080d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Georgia,serif" }}>
       <div style={{ textAlign: "center" }}><div style={{ fontSize: 36, marginBottom: 12 }}>🃏</div><div style={{ opacity: 0.6 }}>Connecting…</div></div>
     </div>
   );
@@ -2612,7 +2587,7 @@ function OnlineGameScreen({ socket, series, onEnd, onRoundEnd }) {
             </div>
             <button onClick={() => shareJoinLink(roomCodeRef.current)} style={{
               border: "none", borderRadius: 8, padding: "6px 10px",
-              background: "linear-gradient(180deg,#2563eb,#1d4ed8)", color: "#fff",
+              background: "linear-gradient(180deg,#d4a336,#b8860b)", color: "#fff",
               fontSize: 10, fontWeight: 900, cursor: "pointer", flexShrink: 0,
             }}>🔗</button>
             <div style={{ flex: 1 }} />
