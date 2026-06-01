@@ -775,6 +775,7 @@ function DealScreen({ game, onDone }) {
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showWild, setShowWild] = useState(false);
   const doneRef = useRef(false);
+  const flipStarted = useRef(false);
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; });
   const finishDeal = useCallback(() => {
@@ -791,15 +792,17 @@ function DealScreen({ game, onDone }) {
     return () => clearTimeout(t);
   }, [step, phase]);
 
-  // After dealing, run flip sequence
+  // After dealing ends, run the entire flip sequence as fire-and-forget timeouts.
+  // NO cleanup — so phase changes (flipping → revealed) can't kill the chain.
+  // flipStarted ref prevents re-scheduling on subsequent renders.
   useEffect(() => {
-    if (phase !== "pause") return;
-    const t1 = setTimeout(() => setPhase("flipping"), 500);
-    const t2 = setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1000);
-    const t3 = setTimeout(() => { setShowWild(true); setPhase("revealed"); }, 1600);
-    const t4 = setTimeout(() => finishDeal(), 4300);
-    const failsafe = setTimeout(() => finishDeal(), 7000);
-    return () => [t1, t2, t3, t4, failsafe].forEach(clearTimeout);
+    if (phase !== "pause" || flipStarted.current) return;
+    flipStarted.current = true;
+    setTimeout(() => setPhase("flipping"), 500);
+    setTimeout(() => { setCardFlipped(true); Sounds.flip(); }, 1000);
+    setTimeout(() => { setShowWild(true); setPhase("revealed"); }, 1600);
+    setTimeout(() => finishDeal(), 4300);
+    setTimeout(() => finishDeal(), 7000); // failsafe
   }, [phase]);
 
   // Cards dealt to each player at current step
@@ -1531,12 +1534,15 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
 
       {/* Game title + scoreboard */}
       <div style={{ padding: "2px 2px 8px", marginBottom: 6 }}>
+        {!isOnlineGame && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: 1.4, color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,0.55)", flex: 1 }}>🃏 Shivaan's 9 Card</div>
-          {!isOnlineGame && onEnd && (
+          {onEnd && (
             <button onClick={onEnd} style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, background: "rgba(120,40,40,0.92)", color: "#fff", border: "1px solid rgba(212,175,55,0.4)", cursor: "pointer" }}>End 🚪</button>
           )}
         </div>
+        )}
+        {!isOnlineGame && (
         <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
           {series && series.players.map(p => (
             <div key={p.id} style={{ flex: "1 1 96px", minWidth: 96, background: "linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.28))", borderRadius: 12, padding: "7px 9px", border: p.id === currentPlayer ? "1.5px solid rgba(212,175,55,0.75)" : "1px solid rgba(212,175,55,0.18)", boxShadow: p.id === currentPlayer ? "0 0 14px rgba(212,175,55,0.18)" : "none" }}>
@@ -1549,6 +1555,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
             </div>
           ))}
         </div>
+        )}
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, fontSize: 12, opacity: 0.72 }}>
           {series && <span style={{ background: "rgba(0,0,0,0.32)", borderRadius: 999, padding: "4px 9px" }}>Round {series.round + 1}</span>}
           <span>Joker: <span style={{ color: "#f8d36f", fontWeight: 900 }}>{wildRank}s</span></span>
@@ -1595,7 +1602,7 @@ function GameScreen({ game, setGame, series, onEnd, onAction }) {
                   <div onClick={isClickable ? () => openPlacement(idx) : undefined}
                     style={{ background: isPT ? "rgba(251,191,36,0.08)" : isClickable ? "rgba(251,191,36,0.06)" : "rgba(0,0,0,0.22)", borderRadius: 8, padding: "6px 8px", border: isPT ? "2px solid #fbbf24" : isClickable ? "2px dashed rgba(251,191,36,0.5)" : "1px solid rgba(255,255,255,0.08)", cursor: isClickable ? "pointer" : "default" }}>
                     <div style={{ fontSize: 9, opacity: 0.4, marginBottom: 4 }}>{meld.playerName}</div>
-                    <div style={{ display: "flex", gap: 2 }}>
+                    <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                       {sortMeld(meld.cards).map(slot => (
                         <div key={slot.card.id} style={{ position: "relative" }}>
                           <CardView card={slot.card} small />
